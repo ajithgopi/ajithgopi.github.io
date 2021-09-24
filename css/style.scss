@@ -1,0 +1,473 @@
+    @import url('https://fonts.googleapis.com/css2?family=Lato:wght@100;300;400;700;900&family=Noto+Sans+JP:wght@100;300;400;500;700;900&family=PT+Sans:wght@400;700&family=Quicksand:wght@300;400;500;600;700&family=Roboto:wght@100;300;400;500;700;900&family=Source+Sans+Pro:wght@200;300;400;600;700;900&display=swap');
+    // font-family: 'Lato', sans-serif;
+    // font-family: 'PT Sans', sans-serif;
+    // font-family: 'Quicksand', sans-serif;
+    // font-family: 'Roboto', sans-serif;
+    // font-family: 'Source Sans Pro', sans-serif;
+    $color-prefix: color-;
+    $bg-prefix: bg;
+    $font-primary: 'Noto Sans JP',
+    sans-serif;
+    $font-alt: 'Quicksand',
+    sans-serif;
+    body {
+        font-weight: 300;
+         :not(.font-alt,
+        .fa,
+        .fas,
+        .fab) {
+            font-family: $font-primary;
+        }
+    }
+    
+    .font-alt {
+        font-family: $font-alt;
+    }
+    
+    .section-title {
+        margin-left: 10px;
+    }
+    
+    .bg-cover {
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+    }
+    
+    .main-content {
+        min-height: 100vh;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+    
+    .#{$bg-prefix} {
+        &-1 {
+            background-image: linear-gradient(0deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 1)), url('../img/backgrounds/bg1.jpg');
+        }
+        &-2 {
+            background-image: linear-gradient(0deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 1)), url('../img/backgrounds/bg1.jpg');
+        }
+    }
+    
+    .navbar-toggler {
+        display: inline-flex;
+        width: 60px;
+        height: 60px;
+        justify-content: center;
+        align-items: center;
+        border-radius: 10rem;
+    }
+    
+    .section-skills {
+        height: fit-content;
+    }
+    
+    #section-twitter {
+        overflow: auto;
+    }
+    
+    .skills,
+    .operating-systems,
+    .utilities,
+    .networking {
+        span {
+            padding: 5px 10px;
+            white-space: nowrap;
+            cursor: pointer;
+            display: inline-block;
+            vertical-align: middle;
+            transition-duration: 0.2s;
+            transition-property: transform;
+            img,
+            i {
+                display: inline-block;
+                margin-right: 6px;
+            }
+            &:hover {
+                transform: scale(1.1);
+                z-index: 1010;
+                font-weight: 500;
+            }
+        }
+    }
+    
+    .text-justify {
+        text-align: justify;
+    }
+    
+    .text-purple {
+        color: purple;
+    }
+    
+    .timeline {
+        .left {
+            position: relative;
+            &::after {
+                content: '';
+                position: absolute;
+                height: 100%;
+                width: 2px;
+                right: 0;
+                top: 0;
+                background: purple;
+                border-radius: 10px 0 0 10px;
+            }
+        }
+        .right {
+            position: relative;
+            &::before {
+                content: '';
+                position: absolute;
+                height: 100%;
+                width: 2px;
+                left: 0;
+                top: 0;
+                background: purple;
+                border-radius: 0 10px 10px 0;
+            }
+        }
+        .item-right {
+            margin-left: 20px;
+            .bubble {
+                background-color: #e0e0e0;
+                border-radius: 8px;
+                padding: 20px 15px;
+                position: relative;
+                &::before {
+                    content: '';
+                    position: absolute;
+                    left: -13px;
+                    top: 20px;
+                    transform: rotate(45deg);
+                    z-index: -1;
+                    width: 26px;
+                    height: 26px;
+                    background: #e0e0e0;
+                }
+                .logo {
+                    flex-grow: 0;
+                    img {
+                        width: 64px;
+                        height: 64px;
+                        object-fit: contain;
+                        object-position: center;
+                    }
+                }
+                .institute {
+                    flex-grow: 1;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                }
+                .score {
+                    flex-grow: 0;
+                }
+            }
+        }
+        .item-left {
+            margin-right: 20px;
+            .bubble {
+                background-color: #e0e0e0;
+                border-radius: 8px;
+                padding: 20px 15px;
+                position: relative;
+                &::after {
+                    content: '';
+                    position: absolute;
+                    right: -13px;
+                    top: 20px;
+                    transform: rotate(45deg);
+                    z-index: -1;
+                    width: 26px;
+                    height: 26px;
+                    background: #e0e0e0;
+                }
+            }
+        }
+    }
+    
+    .#{$color-prefix} {
+        &html5 {
+            color: #E34F26;
+            filter: invert(37%) sepia(28%) saturate(3969%) hue-rotate(348deg) brightness(94%) contrast(89%);
+        }
+        &php {
+            filter: invert(51%) sepia(8%) saturate(2079%) hue-rotate(198deg) brightness(94%) contrast(86%);
+        }
+        &laravel {
+            filter: invert(29%) sepia(76%) saturate(3988%) hue-rotate(347deg) brightness(99%) contrast(105%);
+        }
+        &smarty {
+            color: #F0C040;
+        }
+        &visualstudio {
+            filter: invert(20%) sepia(97%) saturate(1184%) hue-rotate(246deg) brightness(87%) contrast(99%);
+        }
+        &vscode {
+            filter: invert(48%) sepia(94%) saturate(2848%) hue-rotate(163deg) brightness(97%) contrast(101%);
+        }
+        &jquery {
+            filter: invert(31%) sepia(30%) saturate(3921%) hue-rotate(183deg) brightness(88%) contrast(94%);
+        }
+        &arduino {
+            filter: invert(37%) sepia(89%) saturate(833%) hue-rotate(144deg) brightness(97%) contrast(101%);
+        }
+        &cpp {
+            filter: invert(22%) sepia(29%) saturate(5251%) hue-rotate(188deg) brightness(100%) contrast(101%);
+        }
+        &sass {
+            filter: invert(52%) sepia(24%) saturate(1010%) hue-rotate(277deg) brightness(91%) contrast(89%);
+        }
+        &java {
+            filter: invert(22%) sepia(78%) saturate(2574%) hue-rotate(175deg) brightness(97%) contrast(101%);
+        }
+        &kotlin {
+            filter: invert(65%) sepia(81%) saturate(4863%) hue-rotate(167deg) brightness(88%) contrast(101%);
+        }
+        &css3 {
+            filter: invert(30%) sepia(95%) saturate(991%) hue-rotate(179deg) brightness(96%) contrast(88%);
+        }
+        &xml {
+            filter: invert(16%) sepia(70%) saturate(4905%) hue-rotate(212deg) brightness(90%) contrast(91%);
+        }
+        &python {
+            filter: invert(35%) sepia(83%) saturate(427%) hue-rotate(165deg) brightness(100%) contrast(84%);
+        }
+        &bootstrap {
+            filter: invert(35%) sepia(29%) saturate(1299%) hue-rotate(222deg) brightness(97%) contrast(85%);
+        }
+        &react {
+            filter: invert(85%) sepia(30%) saturate(4240%) hue-rotate(166deg) brightness(106%) contrast(97%);
+        }
+        &nodejs {
+            filter: invert(48%) sepia(30%) saturate(1106%) hue-rotate(71deg) brightness(94%) contrast(87%);
+        }
+        &django {
+            filter: invert(11%) sepia(58%) saturate(642%) hue-rotate(106deg) brightness(95%) contrast(93%);
+        }
+        &electron {
+            filter: invert(48%) sepia(40%) saturate(392%) hue-rotate(141deg) brightness(90%) contrast(101%);
+        }
+        &pandas {
+            filter: invert(10%) sepia(76%) saturate(6895%) hue-rotate(257deg) brightness(42%) contrast(108%);
+        }
+        &numpy {
+            filter: invert(11%) sepia(45%) saturate(4170%) hue-rotate(176deg) brightness(89%) contrast(99%);
+        }
+        &dart {
+            filter: invert(35%) sepia(87%) saturate(5591%) hue-rotate(188deg) brightness(94%) contrast(99%);
+        }
+        &flutter {
+            filter: invert(16%) sepia(94%) saturate(2831%) hue-rotate(194deg) brightness(94%) contrast(99%);
+        }
+        &regex {
+            filter: invert(17%) sepia(60%) saturate(3004%) hue-rotate(262deg) brightness(90%) contrast(88%);
+        }
+        &websockets {
+            filter: invert(40%) sepia(47%) saturate(2851%) hue-rotate(346deg) brightness(91%) contrast(95%);
+        }
+        &mysql {
+            filter: invert(42%) sepia(41%) saturate(523%) hue-rotate(163deg) brightness(96%) contrast(97%);
+        }
+        &mariadb {
+            filter: invert(16%) sepia(39%) saturate(1332%) hue-rotate(152deg) brightness(95%) contrast(103%);
+        }
+        &mongodb {
+            filter: invert(53%) sepia(48%) saturate(528%) hue-rotate(71deg) brightness(92%) contrast(92%);
+        }
+        &mssql {
+            filter: invert(13%) sepia(46%) saturate(7337%) hue-rotate(353deg) brightness(110%) contrast(80%);
+        }
+        &sqlite {
+            filter: invert(17%) sepia(33%) saturate(2834%) hue-rotate(169deg) brightness(95%) contrast(105%);
+        }
+        &ubuntu {
+            filter: invert(42%) sepia(78%) saturate(2682%) hue-rotate(349deg) brightness(94%) contrast(95%);
+        }
+        &kali {
+            filter: invert(49%) sepia(15%) saturate(1012%) hue-rotate(159deg) brightness(90%) contrast(87%);
+        }
+        &popos {
+            filter: invert(70%) sepia(24%) saturate(973%) hue-rotate(138deg) brightness(89%) contrast(85%);
+        }
+        &windows {
+            filter: invert(30%) sepia(42%) saturate(3495%) hue-rotate(188deg) brightness(99%) contrast(103%);
+        }
+        &centos {
+            filter: invert(12%) sepia(82%) saturate(2459%) hue-rotate(230deg) brightness(85%) contrast(91%);
+        }
+        &android {
+            filter: invert(77%) sepia(42%) saturate(705%) hue-rotate(85deg) brightness(91%) contrast(89%);
+        }
+        &ios {
+            filter: invert(0%) sepia(0%) saturate(0%) hue-rotate(121deg) brightness(97%) contrast(103%);
+        }
+        &macos {
+            filter: invert(0%) sepia(0%) saturate(0%) hue-rotate(121deg) brightness(97%) contrast(103%);
+        }
+        &visualstudiocode {
+            filter: invert(52%) sepia(84%) saturate(7202%) hue-rotate(188deg) brightness(96%) contrast(102%);
+        }
+        &vim {
+            filter: invert(22%) sepia(75%) saturate(4778%) hue-rotate(143deg) brightness(106%) contrast(99%);
+        }
+        &nano {
+            filter: invert(18%) sepia(71%) saturate(2166%) hue-rotate(255deg) brightness(96%) contrast(88%);
+        }
+        &androidstudio {
+            filter: invert(96%) sepia(81%) saturate(1780%) hue-rotate(67deg) brightness(99%) contrast(74%);
+        }
+        &phpstorm {
+            filter: invert(0%) sepia(63%) saturate(7468%) hue-rotate(66deg) brightness(99%) contrast(106%);
+        }
+        &unity {
+            filter: invert(0%) sepia(63%) saturate(7468%) hue-rotate(66deg) brightness(99%) contrast(106%);
+        }
+        &torbrowser {
+            filter: invert(36%) sepia(9%) saturate(3718%) hue-rotate(236deg) brightness(89%) contrast(89%);
+        }
+        &git {
+            filter: invert(45%) sepia(27%) saturate(5854%) hue-rotate(341deg) brightness(95%) contrast(97%);
+        }
+        &adobedreamweaver {
+            filter: invert(68%) sepia(62%) saturate(4523%) hue-rotate(280deg) brightness(104%) contrast(108%);
+        }
+        &adobephotoshop {
+            filter: invert(40%) sepia(80%) saturate(3567%) hue-rotate(189deg) brightness(83%) contrast(95%);
+        }
+        &adobexd {
+            filter: invert(64%) sepia(63%) saturate(4018%) hue-rotate(282deg) brightness(107%) contrast(107%);
+        }
+        &adobepremierepro {
+            filter: invert(54%) sepia(97%) saturate(1122%) hue-rotate(206deg) brightness(105%) contrast(101%);
+        }
+        &adobeaftereffects {
+            filter: invert(66%) sepia(16%) saturate(5499%) hue-rotate(204deg) brightness(101%) contrast(101%);
+        }
+        &filezilla {
+            filter: invert(10%) sepia(68%) saturate(6711%) hue-rotate(358deg) brightness(93%) contrast(111%);
+        }
+        &anydesk {
+            filter: invert(46%) sepia(87%) saturate(5248%) hue-rotate(343deg) brightness(99%) contrast(89%);
+        }
+        &skype {
+            filter: invert(49%) sepia(98%) saturate(2057%) hue-rotate(162deg) brightness(99%) contrast(102%);
+        }
+        &teamviewer {
+            filter: invert(61%) sepia(87%) saturate(5248%) hue-rotate(182deg) brightness(98%) contrast(89%);
+        }
+        &microsoftoffice {
+            filter: invert(21%) sepia(63%) saturate(5495%) hue-rotate(22deg) brightness(103%) contrast(99%);
+        }
+        &cpanel {
+            filter: invert(58%) sepia(25%) saturate(6897%) hue-rotate(340deg) brightness(102%) contrast(104%);
+        }
+        &jupyter {
+            filter: invert(71%) sepia(83%) saturate(3846%) hue-rotate(341deg) brightness(95%) contrast(100%);
+        }
+        &googlecolab {
+            filter: invert(58%) sepia(82%) saturate(592%) hue-rotate(3deg) brightness(102%) contrast(100%);
+        }
+        &xampp {
+            filter: invert(77%) sepia(48%) saturate(6223%) hue-rotate(341deg) brightness(97%) contrast(103%);
+        }
+        &linux {
+            filter: invert(76%) sepia(87%) saturate(647%) hue-rotate(338deg) brightness(104%) contrast(98%);
+        }
+        &googleanalytics {
+            filter: invert(59%) sepia(50%) saturate(5648%) hue-rotate(7deg) brightness(96%) contrast(101%);
+        }
+        &googleadsense {
+            filter: invert(43%) sepia(93%) saturate(452%) hue-rotate(179deg) brightness(96%) contrast(99%);
+        }
+        &apache {
+            filter: invert(13%) sepia(99%) saturate(4006%) hue-rotate(350deg) brightness(95%) contrast(86%);
+        }
+        &apachetomcat {
+            filter: invert(78%) sepia(36%) saturate(528%) hue-rotate(2deg) brightness(107%) contrast(95%);
+        }
+        &notepadplusplus {
+            filter: invert(93%) sepia(6%) saturate(2395%) hue-rotate(63deg) brightness(88%) contrast(106%);
+        }
+        &sqlite {
+            filter: invert(16%) sepia(44%) saturate(2612%) hue-rotate(173deg) brightness(92%) contrast(101%);
+        }
+        &wireshark {
+            filter: invert(37%) sepia(15%) saturate(5184%) hue-rotate(168deg) brightness(91%) contrast(83%);
+        }
+        &google {
+            filter: invert(42%) sepia(61%) saturate(1290%) hue-rotate(196deg) brightness(99%) contrast(93%);
+        }
+        &jsfiddle {
+            filter: invert(29%) sepia(59%) saturate(3293%) hue-rotate(199deg) brightness(110%) contrast(106%);
+        }
+        &codepen {
+            filter: invert(0%) sepia(96%) saturate(0%) hue-rotate(77deg) brightness(93%) contrast(104%);
+        }
+        &letsencrypt {
+            filter: invert(16%) sepia(36%) saturate(3752%) hue-rotate(192deg) brightness(94%) contrast(101%);
+        }
+        &amazonaws {
+            filter: invert(15%) sepia(46%) saturate(386%) hue-rotate(172deg) brightness(97%) contrast(94%);
+        }
+        &digitalocean {
+            filter: invert(45%) sepia(70%) saturate(5603%) hue-rotate(196deg) brightness(101%) contrast(107%);
+        }
+        &virtualbox {
+            filter: invert(16%) sepia(33%) saturate(2634%) hue-rotate(189deg) brightness(93%) contrast(88%);
+        }
+        &autodesk {
+            filter: invert(42%) sepia(99%) saturate(3396%) hue-rotate(175deg) brightness(101%) contrast(95%);
+        }
+        &eclipseide {
+            filter: invert(15%) sepia(37%) saturate(1509%) hue-rotate(218deg) brightness(92%) contrast(98%);
+        }
+        &vue {
+            filter: invert(60%) sepia(38%) saturate(554%) hue-rotate(101deg) brightness(104%) contrast(85%);
+        }
+        &tailwindcss {
+            filter: invert(52%) sepia(11%) saturate(4387%) hue-rotate(134deg) brightness(118%) contrast(56%);
+        }
+        &ssl {
+            color: #3E885B;
+        }
+        &dhcp {
+            color: #0075F2;
+        }
+        &dns {
+            color: #7F675B;
+        }
+        &ftp {
+            color: #de541e;
+        }
+        &serial {
+            color: #065A82;
+        }
+        &stackoverflow {
+            color: #F48024;
+            transition: color .3s;
+            &.color-hover:hover {
+                color: darken( #F48024, 15%);
+            }
+        }
+        &github {
+            color: #000;
+            transition: color .3s;
+            &.color-hover:hover {
+                color: lighten( #111, 25%);
+            }
+        }
+        &twitter {
+            color: #00ACEE;
+            transition: color .3s;
+            &.color-hover:hover {
+                color: darken( #00ACEE, 15%);
+            }
+        }
+        &linkedin {
+            color: #0E76A8;
+            transition: color .3s;
+            &.color-hover:hover {
+                color: darken( #0E76A8, 15%);
+            }
+        }
+    }
