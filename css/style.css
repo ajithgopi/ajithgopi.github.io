@@ -675,4 +675,14 @@ body {
 .color-linkedin.color-hover:hover {
   color: #084461;
 }
+
+.color-youtube {
+  color: #FF0000;
+  -webkit-transition: color .3s;
+  transition: color .3s;
+}
+
+.color-youtube.color-hover:hover {
+  color: #FF1010;
+}
 /*# sourceMappingURL=style.css.map */
