@@ -61,9 +61,11 @@
     .section-skills {
         height: fit-content;
     }
-    
-    #section-twitter {
+
+    @media (min-width: 768px){
+      #section-twitter {
         overflow: auto;
+      }
     }
     
     .skills,
