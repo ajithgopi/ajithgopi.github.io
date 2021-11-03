@@ -58,8 +58,10 @@ body {
   height: fit-content;
 }
 
-#section-twitter {
-  overflow: auto;
+@media (min-width: 768px){
+  #section-twitter {
+    overflow: auto;
+  }
 }
 
 .skills span,
