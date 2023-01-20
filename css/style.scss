@@ -12,10 +12,7 @@
     sans-serif;
     body {
         font-weight: 300;
-         :not(.font-alt,
-        .fa,
-        .fas,
-        .fab) {
+        :not(.font-alt, .fa, .fas, .fab) {
             font-family: $font-primary;
         }
     }
@@ -73,6 +70,7 @@
     .utilities,
     .networking {
         span {
+            font-size: 1.05rem;
             padding: 5px 10px;
             white-space: nowrap;
             cursor: pointer;
@@ -470,6 +468,20 @@
             transition: color .3s;
             &.color-hover:hover {
                 color: darken( #0E76A8, 15%);
+            }
+        }
+        &youtube {
+            color: #FF1010;
+            transition: color .3s;
+            &.color-hover:hover {
+                color: darken( #FF1010, 15%);
+            }
+        }
+        &instagram {
+            color: #d62976;
+            transition: color .3s;
+            &.color-hover:hover {
+                color: darken( #d62976, 15%);
             }
         }
     }
