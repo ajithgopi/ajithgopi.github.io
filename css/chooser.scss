@@ -1,0 +1,19 @@
+$font-primary: 'Noto Sans JP', sans-serif;
+$font-alt: 'Quicksand', sans-serif;
+body {
+    background-color: black;
+    font-weight: 300;
+    :not(.font-alt, .fa, .fas, .fab) {
+        font-family: $font-primary;
+    }
+}
+
+.font-alt {
+    font-family: $font-alt;
+}
+
+#selection-modal {
+    .modal-dialog {
+        height: 400px;
+    }
+}
