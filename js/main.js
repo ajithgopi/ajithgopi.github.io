@@ -16,19 +16,25 @@ function initThemeToggle() {
     const toggleBtn = document.getElementById('theme-toggle');
     const themeIcon = document.getElementById('theme-icon');
     
-    // Check saved theme or default to light
-    const savedTheme = localStorage.getItem('portfolio-theme') || 'light';
-    setTheme(savedTheme);
+    // Check saved theme or default based on time of day (Light 6am-6pm, Dark 6pm-6am)
+    const savedTheme = localStorage.getItem('portfolio-theme');
+    if (savedTheme) {
+        setTheme(savedTheme, false);
+    } else {
+        const hour = new Date().getHours();
+        const timeTheme = (hour >= 6 && hour < 18) ? 'light' : 'dark';
+        setTheme(timeTheme, false);
+    }
 
     if (toggleBtn) {
         toggleBtn.addEventListener('click', function() {
             const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
+            setTheme(newTheme, true);
         });
     }
 
-    function setTheme(theme) {
+    function setTheme(theme, save = true) {
         if (theme === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
             if (themeIcon) themeIcon.className = 'fas fa-sun text-warning';
@@ -38,7 +44,9 @@ function initThemeToggle() {
             if (themeIcon) themeIcon.className = 'fas fa-moon text-primary';
             if (toggleBtn) toggleBtn.setAttribute('title', 'Switch to Dark Mode');
         }
-        localStorage.setItem('portfolio-theme', theme);
+        if (save) {
+            localStorage.setItem('portfolio-theme', theme);
+        }
     }
 }
 
