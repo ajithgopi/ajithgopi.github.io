@@ -1,26 +1,93 @@
 /* -------------------------------------------------------------
  * Interactive AI Assistant Sandbox ("Ajith AI") with Reasoning Engine
+ * Features: Fuzzy Spelling Corrector, Dynamic Response Synthesizer,
+ * Generative Token Streaming, and Interactive Advice Prompts.
  * ------------------------------------------------------------- */
+
+const dictionary = [
+    "python", "javascript", "typescript", "react", "node", "express", "swift", "kotlin",
+    "android", "aws", "docker", "kubernetes", "mongodb", "postgresql", "sql", "angular",
+    "php", "laravel", "experience", "projects", "contact", "education", "skills", "salary",
+    "location", "emirates", "tutorhow", "reach52", "infosys", "dubai", "expertise", "portfolio"
+];
+
+function levenshteinDistance(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
+
+function correctTyposInQuery(query) {
+    const words = query.split(/(\s+)/);
+    const corrections = [];
+    
+    const correctedTokens = words.map(token => {
+        const cleanToken = token.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (cleanToken.length < 4) return token;
+        if (dictionary.includes(cleanToken)) return token;
+
+        let bestMatch = null;
+        let minDistance = 3;
+
+        for (const dictWord of dictionary) {
+            const maxDistAllowed = dictWord.length > 5 ? 2 : 1;
+            const dist = levenshteinDistance(cleanToken, dictWord);
+            if (dist <= maxDistAllowed && dist < minDistance) {
+                minDistance = dist;
+                bestMatch = dictWord;
+            }
+        }
+
+        if (bestMatch && bestMatch !== cleanToken) {
+            corrections.push({ original: cleanToken, corrected: bestMatch });
+            return token.toLowerCase().replace(cleanToken, bestMatch);
+        }
+        return token;
+    });
+
+    return {
+        correctedQuery: correctedTokens.join(''),
+        corrections: corrections
+    };
+}
+
 const aiKnowledgeBase = [
     {
         id: "expertise",
         keywords: ["ai", "machine learning", "llm", "rag", "agent", "prompt", "gpt", "claude", "deep learning", "nlp", "artificial intelligence", "ollama", "openai"],
-        answer: "🤖 <strong>Ajith's AI & Automation Expertise:</strong><br>Ajith prioritizes AI-based development (Claude/OpenAI/Ollama) with in-sprint automation. He designs custom RAG pipelines, context-aware document search, and LLM integrations across Node.js, Python, React, and AWS microservices!"
+        answer: "🤖 <strong>Ajith's AI & Automation Expertise:</strong><br>Ajith prioritizes AI-driven engineering (Claude/OpenAI/Ollama) integrated with in-sprint automation. He designs custom RAG pipelines, context-aware document search, and scalable LLM microservices across Node.js, Python, React, and AWS cloud architecture!"
     },
     {
         id: "projects",
         keywords: ["project", "portfolio", "built", "apps", "work", "reach52", "tutorhow", "insights", "gold vault", "showcase", "github"],
-        answer: "⚡ <strong>Key CV Projects:</strong><br>1. <strong>Emirates NBD Corporate Banking:</strong> RM daily management & deal platforms (React, Node, MongoDB, OracleDB).<br>2. <strong>reach52 insights & connect:</strong> Enterprise analytical monitoring & admin automation.<br>3. <strong>Tutorhow Virtual Front Desk & ETO:</strong> Multi-tenant edtech & PWA applications.<br>4. <strong>Gold Vault Tracker:</strong> Precious metal tracking iOS app."
+        answer: "⚡ <strong>Key Enterprise Projects:</strong><br>1. <strong>Emirates NBD Corporate Banking:</strong> RM daily management & deal platforms (React, Node.js, MongoDB, OracleDB).<br>2. <strong>reach52 Insights & Connect:</strong> Enterprise analytical monitoring & admin automation.<br>3. <strong>Tutorhow Virtual Front Desk & ETO:</strong> Multi-tenant edtech & PWA applications.<br>4. <strong>Gold Vault Tracker:</strong> Native iOS precious metal tracking app featuring WidgetKit & biometric security."
     },
     {
         id: "skills",
         keywords: ["skill", "stack", "technology", "languages", "tech", "python", "react", "node", "aws", "framework", "database", "sql", "mongodb", "docker", "kubernetes", "swift", "kotlin", "php", "javascript", "typescript"],
-        answer: "🛠️ <strong>Core Tech Stack:</strong><br>• <strong>Languages:</strong> JavaScript (ES6+), TypeScript, Python, Swift, Kotlin, PHP, SQL<br>• <strong>Frontend:</strong> React, Next.js, Angular, Redux, Tailwind, Bootstrap<br>• <strong>Backend & Cloud:</strong> Node.js, Express, Laravel, AWS, Docker, K8s<br>• <strong>Databases:</strong> MongoDB, PostgreSQL, MySQL, Redis, DynamoDB, Neo4J, OracleDB"
+        answer: "🛠️ <strong>Core Tech Stack:</strong><br>• <strong>Languages:</strong> JavaScript (ES6+), TypeScript, Python, Swift, Kotlin, PHP, SQL<br>• <strong>Frontend:</strong> React, Next.js, Angular, Redux, Tailwind, Bootstrap<br>• <strong>Backend & Cloud:</strong> Node.js, Express, Laravel, AWS, Docker, Kubernetes<br>• <strong>Databases:</strong> MongoDB, PostgreSQL, MySQL, Redis, DynamoDB, Neo4J, OracleDB"
     },
     {
         id: "experience",
         keywords: ["experience", "background", "career", "job", "emirates", "synechron", "reach52", "tutorhow", "infosys", "history", "resume", "cv"],
-        answer: "💼 <strong>Professional Experience:</strong><br>• <strong>Emirates NBD (Synechron)</strong> | Dubai (11/2024 - Present): Corporate Banking & AI-driven dev.<br>• <strong>reach52</strong> | Singapore (01/2022 - 11/2024): Full Stack Engineer & Cloud Microservices.<br>• <strong>Tutorhow</strong> | India (01/2020 - 12/2021): Lead Developer (PWA, Video/Audio streaming, Mobile Apps).<br>• <strong>Infosys</strong> | India (06/2019 - 01/2020): Systems Engineer."
+        answer: "💼 <strong>Professional Experience (7+ Years):</strong><br>• <strong>Emirates NBD (Synechron)</strong> | Dubai (11/2024 - Present): Corporate Banking & AI-driven development.<br>• <strong>reach52</strong> | Singapore (01/2022 - 11/2024): Full Stack Engineer & Cloud Microservices.<br>• <strong>Tutorhow</strong> | India (01/2020 - 12/2021): Lead Developer (PWAs, Video/Audio streaming, Mobile Apps).<br>• <strong>Infosys</strong> | India (06/2019 - 01/2020): Systems Engineer."
     },
     {
         id: "contact",
@@ -47,7 +114,7 @@ const aiKnowledgeBase = [
     {
         id: "location",
         keywords: ["location", "where", "live", "based", "city", "country", "dubai", "uae", "india", "relocate"],
-        answer: "🌍 <strong>Location:</strong> Ajith is currently based in <strong>Dubai, UAE</strong>. He is open to exciting software engineering and AI architecture roles!"
+        answer: "🌍 <strong>Location:</strong> Ajith is currently based in <strong>Dubai, UAE</strong>. He is open to software engineering and AI architecture opportunities!"
     },
     {
         id: "salary",
@@ -100,6 +167,24 @@ const fallbackAnswers = [
 const positiveWords = ["yes", "yeah", "yep", "sure", "ok", "okay", "please", "absolutely", "definitely", "course"];
 const negativeWords = ["no", "nope", "nah", "never", "don't", "stop", "nothing", "none"];
 
+// Dynamic Generative Response Templates
+const techIntros = [
+    "Ajith brings extensive hands-on expertise to ",
+    "Regarding ",
+    "Ajith has a proven track record working with ",
+    "With extensive professional experience in "
+];
+
+const generalOutros = [
+    "<br><br>💡 <em>Would you like to explore Ajith's project portfolio or inspect his core technology stack?</em>",
+    "<br><br>💡 <em>Feel free to ask about his specific corporate banking work at Emirates NBD or cloud architecture.</em>",
+    "<br><br>💡 <em>Shall I provide details on his contact information or resume background?</em>"
+];
+
+function getRandomItem(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function analyzeSentiment(text) {
     const words = text.toLowerCase().match(/\b\w+\b/g) || [];
     let posCount = words.filter(w => positiveWords.includes(w)).length;
@@ -117,7 +202,7 @@ function clearAIChat() {
             <div class="chat-msg bot">
                 <div class="chat-avatar"><i class="fas fa-robot"></i></div>
                 <div class="chat-bubble">
-                    👋 Hi there! I'm Ajith's AI Assistant with step-by-step reasoning enabled. Ask me anything about Ajith's <strong>experience</strong>, <strong>AI expertise</strong>, or <strong>top projects</strong>!
+                    👋 Hi there! I'm Ajith's AI Assistant with step-by-step reasoning and generative token streaming. Ask me anything about Ajith's <strong>experience</strong>, <strong>AI expertise</strong>, or <strong>top projects</strong>!
                 </div>
             </div>
         `;
@@ -163,7 +248,7 @@ function initAIAssistant() {
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
-    // Smart technology & experience intent parser
+    // Smart technology & experience intent parser with generative variations
     function parseTechOrExperienceIntent(queryLower) {
         const words = queryLower.match(/\b\w+\b/g) || [];
         
@@ -173,42 +258,44 @@ function initAIAssistant() {
         ) || queryLower === "what is your total experience" || queryLower === "total experience";
 
         if (isTotalExpQuery) {
+            const outro = getRandomItem(generalOutros);
             return {
                 type: "total_experience",
                 reasoning: "Parsed intent: Total Experience Request -> Calculated 7+ years across enterprise roles (since June 2019).",
-                answer: "💼 <strong>Ajith's Total Experience:</strong><br>Ajith has <strong>7+ years of total professional software engineering experience</strong> (since June 2019), specializing in <strong>Full Stack Development, AI Engineering, and Cloud Microservices</strong> across leading organizations like Emirates NBD, reach52, Tutorhow, and Infosys."
+                answer: `💼 <strong>Ajith's Total Experience:</strong><br>Ajith has <strong>7+ years of total professional software engineering experience</strong> (since June 2019), specializing in <strong>Full Stack Development, AI Architecture, and Cloud Microservices</strong> across leading enterprise organizations like Emirates NBD, reach52, Tutorhow, and Infosys.${outro}`
             };
         }
 
-        // Check if query is asking for years of experience or "do you know" for a specific technology
         const isExpQuery = queryLower.includes("experience") || queryLower.includes("years") || queryLower.includes("how long");
         const isDoYouKnowQuery = queryLower.includes("do you know") || queryLower.includes("does ajith know") || queryLower.includes("knows") || queryLower.includes("familiar");
 
         // Search tech map for matched technology
         for (const [key, techObj] of Object.entries(techExperienceMap)) {
-            // Match tech keyword (e.g. "python", "react", "swift")
             const regex = new RegExp(`\\b${key}\\b`, 'i');
             if (regex.test(queryLower)) {
+                const intro = getRandomItem(techIntros);
+                const outro = getRandomItem(generalOutros);
+
                 if (isDoYouKnowQuery) {
                     return {
                         type: "tech_know",
                         techName: techObj.name,
                         reasoning: `Extracted technology entity: [${techObj.name}] -> Evaluated capabilities & verified ${techObj.years} experience.`,
-                        answer: `✅ <strong>Yes, Ajith knows ${techObj.name}!</strong><br>He has <strong>${techObj.years} of hands-on experience in ${techObj.name}</strong> (${techObj.role}). ${techObj.details}`
+                        answer: `✅ <strong>Yes, Ajith knows ${techObj.name}!</strong><br>${intro}<strong>${techObj.name} (${techObj.years} experience)</strong>. ${techObj.details}${outro}`
                     };
                 } else if (isExpQuery) {
                     return {
                         type: "tech_experience",
                         techName: techObj.name,
                         reasoning: `Extracted technology entity: [${techObj.name}] -> Queried experience matrix (${techObj.years} experience).`,
-                        answer: `⚡ <strong>${techObj.name} Experience:</strong><br>Ajith has <strong>${techObj.years} of hands-on experience working with ${techObj.name}</strong>. He specializes in <strong>${techObj.role}</strong> — ${techObj.details}`
+                        answer: `⚡ <strong>${techObj.name} Experience:</strong><br>Ajith has <strong>${techObj.years} of hands-on experience working with ${techObj.name}</strong>. He specializes in <strong>${techObj.role}</strong> — ${techObj.details}${outro}`
                     };
                 } else {
                     return {
                         type: "tech_general",
                         techName: techObj.name,
                         reasoning: `Extracted technology entity: [${techObj.name}] -> Formulated skill summary (${techObj.years} experience).`,
-                        answer: `🛠️ <strong>${techObj.name} Expertise:</strong><br>Ajith brings <strong>${techObj.years} of experience in ${techObj.name}</strong> (${techObj.role}). ${techObj.details}`
+                        answer: `🛠️ <strong>${techObj.name} Expertise:</strong><br>Ajith brings <strong>${techObj.years} of experience in ${techObj.name}</strong> (${techObj.role}). ${techObj.details}${outro}`
                     };
                 }
             }
@@ -216,26 +303,31 @@ function initAIAssistant() {
 
         // Handle "Do you know [Unknown Tech]?" inquiries
         if (isDoYouKnowQuery) {
-            // Extract potential technology word
             const unknownTech = words.find(w => !["do", "you", "know", "does", "ajith", "he", "is", "with", "any", "about", "have"].includes(w));
             const techLabel = unknownTech ? unknownTech.charAt(0).toUpperCase() + unknownTech.slice(1) : "this technology";
             return {
                 type: "unknown_tech",
                 techName: techLabel,
                 reasoning: `Evaluating unknown tech entity: [${techLabel}] against core stack -> Entity identified as secondary/adjacent tool.`,
-                answer: `ℹ️ <strong>Technology Capability:</strong><br>Ajith's core tech stack centers around <strong>JavaScript/TypeScript (7+ yrs), React (6+ yrs), Node.js (6+ yrs), Python (4+ yrs), AI/LLMs (3+ yrs), and AWS (4+ yrs)</strong>. While <strong>${techLabel}</strong> is not listed as his primary framework, as a senior engineer with <strong>7+ years of experience</strong>, he adapts to new tools & languages quickly!`
+                answer: `ℹ️ <strong>Technology Capability:</strong><br>Ajith's core tech stack centers around <strong>JavaScript/TypeScript (7+ yrs), React (6+ yrs), Node.js (6+ yrs), Python (4+ yrs), AI/LLMs (3+ yrs), and AWS (4+ yrs)</strong>. While <strong>${techLabel}</strong> is not listed as his primary framework, as a senior software engineer with <strong>7+ years of experience</strong>, he adapts to new tools & frameworks rapidly!`
             };
         }
 
         return null;
     }
 
-    function generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore, techIntent) {
+    function generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore, techIntent, corrections) {
         const queryShort = query.length > 32 ? query.substring(0, 32) + '...' : query;
         const steps = [];
 
+        // 0. Typo correction notice in thinking steps
+        if (corrections && corrections.length > 0) {
+            const corrText = corrections.map(c => `"${c.original}" ➔ "${c.corrected}"`).join(", ");
+            steps.push(`💡 Spell Checker active -> Corrected typos: [${corrText}]`);
+        }
+
         // 1. NLP & Token Analysis
-        steps.push(`Tokenizing query: "${queryShort}" & evaluating domain scope...`);
+        steps.push(`Tokenizing query: "${queryShort}" & evaluating domain parameters...`);
 
         if (query.length > 20 || query.includes(" ")) {
             steps.push(`Running intent classifier & embedding distance check...`);
@@ -253,16 +345,39 @@ function initAIAssistant() {
         }
 
         // 3. Response Generation
-        steps.push(`Formulating structured response with highlighted metrics & output formatting...`);
+        steps.push(`Synthesizing dynamic response with token streaming...`);
 
         return steps;
     }
 
-    function processAIResponse(query) {
+    // Generative Token Streaming Effect
+    function streamBotAnswer(element, htmlContent, onComplete) {
+        element.classList.remove("d-none");
+        element.innerHTML = "";
+        
+        // Split text into tokens/words preserving HTML tags
+        const tokens = htmlContent.match(/<[^>]+>|[^<>\s]+|\s+/g) || [htmlContent];
+        let tokenIdx = 0;
+
+        const streamInterval = setInterval(() => {
+            if (tokenIdx < tokens.length) {
+                element.innerHTML += tokens[tokenIdx];
+                tokenIdx++;
+                chatBody.scrollTop = chatBody.scrollHeight;
+            } else {
+                clearInterval(streamInterval);
+                if (onComplete) onComplete();
+            }
+        }, 18); // Smooth fast token streaming speed
+    }
+
+    function processAIResponse(rawQuery) {
         const startTime = Date.now();
         const msgId = "ai-msg-" + startTime;
         
-        const queryLower = query.toLowerCase();
+        // Step A: Run Spelling Corrector
+        const { correctedQuery, corrections } = correctTyposInQuery(rawQuery);
+        const queryLower = correctedQuery.toLowerCase();
         const words = queryLower.match(/\b\w+\b/g) || [];
         
         let matchedAnswer = null;
@@ -271,7 +386,7 @@ function initAIAssistant() {
         let matchedScore = 0;
         let isContextMatch = false;
 
-        // 0. Check Technology / Years of Experience Intent First
+        // 0. Check Technology / Years of Experience Intent
         const techIntent = parseTechOrExperienceIntent(queryLower);
         if (techIntent) {
             matchedAnswer = techIntent.answer;
@@ -347,7 +462,13 @@ function initAIAssistant() {
         
         pendingQuestion = nextPendingQuestion;
 
-        const reasoningSteps = generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore, techIntent);
+        // If typos were corrected, add a small polite notice at top of answer
+        if (corrections && corrections.length > 0) {
+            const corrNotice = corrections.map(c => `<strong>"${c.original}"</strong> ➔ <strong>"${c.corrected}"</strong>`).join(", ");
+            matchedAnswer = `<small class="text-info d-block mb-2"><i class="fas fa-spell-check me-1"></i> <em>Auto-corrected spelling: ${corrNotice}</em></small>` + matchedAnswer;
+        }
+
+        const reasoningSteps = generateReasoningSteps(rawQuery, matchedItem, isContextMatch, matchedScore, techIntent, corrections);
 
         // Render initial thinking state
         const initialBotMsgHtml = `
@@ -361,7 +482,7 @@ function initAIAssistant() {
                         </div>
                         <div class="ai-thought-content" id="${msgId}-thought-content"></div>
                     </div>
-                    <div class="chat-answer-text d-none" id="${msgId}-answer">${matchedAnswer}</div>
+                    <div class="chat-answer-text d-none" id="${msgId}-answer"></div>
                 </div>
             </div>
         `;
@@ -413,7 +534,8 @@ function initAIAssistant() {
                     }
 
                     if (answerEl) {
-                        answerEl.classList.remove("d-none");
+                        // Stream the tokenized answer like a real Generative LLM!
+                        streamBotAnswer(answerEl, matchedAnswer);
                     }
                     
                     chatBody.scrollTop = chatBody.scrollHeight;
