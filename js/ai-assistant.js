@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------
- * Interactive AI Assistant Sandbox ("Ajith AI")
+ * Interactive AI Assistant Sandbox ("Ajith AI") with Reasoning Engine
  * ------------------------------------------------------------- */
 const aiKnowledgeBase = [
     {
@@ -57,9 +57,9 @@ const aiKnowledgeBase = [
 ];
 
 const fallbackAnswers = [
-    { text: "🚀 I'm not entirely sure about that, but Ajith is a full-stack engineer and AI developer! Try asking about his <strong>AI expertise</strong>, <strong>core tech stack</strong>, <strong>projects</strong>, or <strong>contact info</strong>.", qid: null },
-    { text: "🤔 Interesting question! My knowledge is focused on Ajith's professional portfolio. Would you like me to summarize his <strong>experience</strong>?", qid: "ask_experience" },
-    { text: "🤖 I didn't quite catch that. Would you like to see the technologies Ajith uses (like <strong>React, Python, or AWS</strong>)?", qid: "ask_skills" }
+    { text: "🎯 As an AI assistant specialized in Ajith's professional portfolio, I focus strictly on his career, skills, and projects! Try asking about his <strong>AI expertise</strong>, <strong>core tech stack</strong>, <strong>projects</strong>, or <strong>contact info</strong>.", qid: null },
+    { text: "📌 That topic falls outside my domain parameters. I am dedicated to assisting with Ajith's professional background. Would you like me to summarize his <strong>experience</strong>?", qid: "ask_experience" },
+    { text: "⚡ My primary directive is providing information on Ajith's technical portfolio. Would you like to see the core technologies Ajith uses (like <strong>React, Python, or AWS</strong>)?", qid: "ask_skills" }
 ];
 
 const positiveWords = ["yes", "yeah", "yep", "sure", "ok", "okay", "please", "absolutely", "definitely", "course"];
@@ -73,6 +73,20 @@ function analyzeSentiment(text) {
     if (posCount > negCount) return 'positive';
     if (negCount > posCount) return 'negative';
     return 'neutral';
+}
+
+function clearAIChat() {
+    const chatBody = document.getElementById("ai-chat-body");
+    if (chatBody) {
+        chatBody.innerHTML = `
+            <div class="chat-msg bot">
+                <div class="chat-avatar"><i class="fas fa-robot"></i></div>
+                <div class="chat-bubble">
+                    👋 Hi there! I'm Ajith's AI Assistant with step-by-step reasoning enabled. Ask me anything about Ajith's <strong>experience</strong>, <strong>AI expertise</strong>, or <strong>top projects</strong>!
+                </div>
+            </div>
+        `;
+    }
 }
 
 function initAIAssistant() {
@@ -114,111 +128,195 @@ function initAIAssistant() {
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
+    function generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore) {
+        const queryShort = query.length > 32 ? query.substring(0, 32) + '...' : query;
+        const steps = [];
+
+        // 1. NLP & Token Analysis
+        steps.push(`Tokenizing query: "${queryShort}" & evaluating domain scope...`);
+
+        // Add dynamic extra reasoning step for longer or multi-word queries
+        if (query.length > 20 || query.includes(" ")) {
+            steps.push(`Running intent classifier & embedding distance check...`);
+        }
+
+        // 2. Knowledge Retrieval & Vector Search
+        if (isContextMatch) {
+            steps.push(`Context memory active -> Evaluating conversational sentiment & thread state...`);
+        } else if (matchedItem) {
+            steps.push(`Querying CV Knowledge Base -> Matched entity: [${matchedItem.id}] (Relevance Score: ${matchedScore || 3})`);
+        } else {
+            steps.push(`Querying Knowledge Base -> Query identified as out of domain parameters. Steering conversation back to Ajith's portfolio.`);
+        }
+
+        // 3. Response Generation
+        steps.push(`Formulating structured response & applying output formatting...`);
+
+        return steps;
+    }
+
     function processAIResponse(query) {
-        // Show typing indicator
-        const typingId = "typing-" + Date.now();
-        const typingHtml = `
-            <div class="chat-msg bot" id="${typingId}">
+        const startTime = Date.now();
+        const msgId = "ai-msg-" + startTime;
+        
+        const queryLower = query.toLowerCase();
+        const words = queryLower.match(/\b\w+\b/g) || [];
+        
+        let matchedAnswer = null;
+        let nextPendingQuestion = null;
+        let matchedItem = null;
+        let matchedScore = 0;
+        let isContextMatch = false;
+
+        // 1. Check pending context
+        if (pendingQuestion) {
+            const sentiment = analyzeSentiment(queryLower);
+            isContextMatch = true;
+            
+            if (sentiment === 'positive') {
+                if (pendingQuestion === 'ask_experience') {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
+                } else if (pendingQuestion === 'ask_skills') {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'skills').answer;
+                } else if (pendingQuestion === 'ask_contact') {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'contact').answer;
+                } else if (pendingQuestion === 'ask_projects_or_experience') {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
+                }
+            } else if (sentiment === 'negative') {
+                matchedAnswer = "No problem! Let me know if there's anything else you'd like to ask.";
+            } else {
+                if (pendingQuestion === 'ask_projects_or_experience') {
+                    if (queryLower.includes('project')) {
+                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
+                    } else if (queryLower.includes('experience')) {
+                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
+                    }
+                }
+            }
+            pendingQuestion = null;
+        }
+
+        // 2. Knowledge base search
+        if (!matchedAnswer) {
+            let bestMatch = null;
+            let highestScore = 0;
+
+            for (const item of aiKnowledgeBase) {
+                let score = 0;
+                for (const kw of item.keywords) {
+                    if (queryLower.includes(kw)) {
+                        score += 3; 
+                    }
+                }
+                for (const word of words) {
+                    if (item.keywords.includes(word)) {
+                        score += 1;
+                    }
+                }
+
+                if (score > highestScore && score > 0) {
+                    highestScore = score;
+                    bestMatch = item;
+                }
+            }
+
+            if (bestMatch) {
+                matchedAnswer = bestMatch.answer;
+                nextPendingQuestion = bestMatch.qid || null;
+                matchedItem = bestMatch;
+                matchedScore = highestScore;
+            }
+        }
+
+        // 3. Fallback
+        if (!matchedAnswer) {
+            const fallback = fallbackAnswers[Math.floor(Math.random() * fallbackAnswers.length)];
+            matchedAnswer = fallback.text;
+            nextPendingQuestion = fallback.qid || null;
+        }
+        
+        pendingQuestion = nextPendingQuestion;
+
+        const reasoningSteps = generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore);
+
+        // Render initial thinking state
+        const initialBotMsgHtml = `
+            <div class="chat-msg bot" id="${msgId}">
                 <div class="chat-avatar"><i class="fas fa-robot"></i></div>
-                <div class="chat-bubble text-muted"><i class="fas fa-ellipsis-h fa-spin"></i> AI is thinking...</div>
+                <div class="chat-bubble">
+                    <div class="ai-thought-box" id="${msgId}-thought-box">
+                        <div class="ai-thought-summary">
+                            <i class="fas fa-brain fa-spin text-info"></i> Thinking process...
+                            <div class="thinking-dots"><span></span><span></span><span></span></div>
+                        </div>
+                        <div class="ai-thought-content" id="${msgId}-thought-content"></div>
+                    </div>
+                    <div class="chat-answer-text d-none" id="${msgId}-answer">${matchedAnswer}</div>
+                </div>
             </div>
         `;
-        chatBody.insertAdjacentHTML("beforeend", typingHtml);
+        
+        chatBody.insertAdjacentHTML("beforeend", initialBotMsgHtml);
         chatBody.scrollTop = chatBody.scrollHeight;
 
-        setTimeout(() => {
-            const typingEl = document.getElementById(typingId);
-            if (typingEl) typingEl.remove();
+        const thoughtContentEl = document.getElementById(`${msgId}-thought-content`);
+        let stepIdx = 0;
 
-            const queryLower = query.toLowerCase();
-            const words = queryLower.match(/\b\w+\b/g) || [];
-            
-            let matchedAnswer = null;
-            let nextPendingQuestion = null;
-
-            // 1. Check pending context
-            if (pendingQuestion) {
-                const sentiment = analyzeSentiment(queryLower);
-                
-                if (sentiment === 'positive') {
-                    if (pendingQuestion === 'ask_experience') {
-                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
-                    } else if (pendingQuestion === 'ask_skills') {
-                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'skills').answer;
-                    } else if (pendingQuestion === 'ask_contact') {
-                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'contact').answer;
-                    } else if (pendingQuestion === 'ask_projects_or_experience') {
-                        // If they just say "yes" to an "or" question, default to projects
-                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
-                    }
-                } else if (sentiment === 'negative') {
-                    matchedAnswer = "No problem! Let me know if there's anything else you'd like to ask.";
-                } else {
-                    // If neutral, they might have answered an "or" question directly
-                    if (pendingQuestion === 'ask_projects_or_experience') {
-                        if (queryLower.includes('project')) {
-                            matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
-                        } else if (queryLower.includes('experience')) {
-                            matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
-                        }
-                    }
+        // Dynamic step-by-step thinking animation with randomized per-step timing
+        function unfoldNextStep() {
+            if (stepIdx < reasoningSteps.length) {
+                const stepHtml = `
+                    <div class="ai-thought-step">
+                        <i class="fas fa-circle-notch fa-spin text-info"></i> ${reasoningSteps[stepIdx]}
+                    </div>
+                `;
+                if (thoughtContentEl) {
+                    thoughtContentEl.insertAdjacentHTML("beforeend", stepHtml);
+                    chatBody.scrollTop = chatBody.scrollHeight;
                 }
-                // Reset context after handling
-                pendingQuestion = null;
-            }
+                stepIdx++;
+                // Dynamic randomized delay per step (120ms - 320ms)
+                const nextDelay = Math.floor(Math.random() * 200) + 120;
+                setTimeout(unfoldNextStep, nextDelay);
+            } else {
+                // Finalize thinking block with dynamic completion delay
+                const finalDelay = Math.floor(Math.random() * 250) + 150;
+                setTimeout(() => {
+                    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    const thoughtBoxEl = document.getElementById(`${msgId}-thought-box`);
+                    const answerEl = document.getElementById(`${msgId}-answer`);
 
-            // 2. If no context match, search knowledge base
-            if (!matchedAnswer) {
-                let bestMatch = null;
-                let highestScore = 0;
+                    if (thoughtBoxEl) {
+                        thoughtBoxEl.innerHTML = `
+                            <details class="ai-thought-details">
+                                <summary class="ai-thought-summary">
+                                    <i class="fas fa-chevron-right chevron"></i>
+                                    <i class="fas fa-lightbulb text-warning"></i>
+                                    Thought for ${elapsed}s
+                                </summary>
+                                <div class="ai-thought-content">
+                                    ${reasoningSteps.map(step => `
+                                        <div class="ai-thought-step">
+                                            <i class="fas fa-check text-success"></i> ${step}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </details>
+                        `;
+                    }
 
-                for (const item of aiKnowledgeBase) {
-                    let score = 0;
-                    
-                    // Exact phrase match gives a high score
-                    for (const kw of item.keywords) {
-                        if (queryLower.includes(kw)) {
-                            score += 3; 
-                        }
+                    if (answerEl) {
+                        answerEl.classList.remove("d-none");
                     }
                     
-                    // Word by word matching for fuzzy-ish logic
-                    for (const word of words) {
-                        if (item.keywords.includes(word)) {
-                            score += 1;
-                        }
-                    }
-
-                    if (score > highestScore && score > 0) {
-                        highestScore = score;
-                        bestMatch = item;
-                    }
-                }
-
-                if (bestMatch) {
-                    matchedAnswer = bestMatch.answer;
-                    nextPendingQuestion = bestMatch.qid || null;
-                }
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                }, finalDelay);
             }
+        }
 
-            // 3. Fallback
-            if (!matchedAnswer) {
-                const fallback = fallbackAnswers[Math.floor(Math.random() * fallbackAnswers.length)];
-                matchedAnswer = fallback.text;
-                nextPendingQuestion = fallback.qid || null;
-            }
-            
-            pendingQuestion = nextPendingQuestion;
-
-            const botMsgHtml = `
-                <div class="chat-msg bot">
-                    <div class="chat-avatar"><i class="fas fa-robot"></i></div>
-                    <div class="chat-bubble">${matchedAnswer}</div>
-                </div>
-            `;
-            chatBody.insertAdjacentHTML("beforeend", botMsgHtml);
-            chatBody.scrollTop = chatBody.scrollHeight;
-        }, 600 + Math.random() * 400); // randomize thinking time slightly
+        // Start unfolding first step after brief initial delay
+        setTimeout(unfoldNextStep, Math.floor(Math.random() * 150) + 100);
     }
 }
 

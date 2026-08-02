@@ -37,8 +37,6 @@
 </head>
 
 <body>
-    <!-- Interactive Neural Network Background Layer -->
-    <canvas id="neural-network-canvas" class="scroll-bg-container"></canvas>
     <div class="bg-mesh-pattern"></div>
 
     <!-- Navbar -->
@@ -54,7 +52,6 @@
                 <ul class="navbar-nav ms-auto align-items-center gap-1">
                     <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
                     <li class="nav-item"><a class="nav-link" href="#ai-hub"><i class="fas fa-sparkles text-success me-1"></i> AI Dev</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#ai-assistant">AI Demo</a></li>
                     <li class="nav-item"><a class="nav-link" href="#skills">Skills</a></li>
                     <li class="nav-item"><a class="nav-link" href="#projects">Projects</a></li>
                     <li class="nav-item"><a class="nav-link" href="#experience">Experience</a></li>
@@ -76,6 +73,8 @@
 
     <!-- Hero Section -->
     <section class="hero-section" id="about">
+        <!-- Hero Section Neural Network Background -->
+        <canvas id="neural-network-canvas" class="hero-bg-canvas"></canvas>
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-8 offset-lg-2 text-center">
@@ -216,7 +215,6 @@
         <div class="container">
             <div class="row align-items-center mb-4">
                 <div class="col-lg-12">
-                    <span class="section-tag"><i class="fas fa-terminal"></i> INTERACTIVE RECRUITER DEMO</span>
                     <h2>Ask <span class="gradient-text">Ajith's AI Assistant</span></h2>
                     <p class="text-muted mb-0">Recruiters can interact with this embedded smart assistant to instantly get details about Ajith's experience, technical capabilities, projects, and contact info.</p>
                 </div>
@@ -224,22 +222,28 @@
 
             <div class="ai-chat-container">
                 <div class="chat-header">
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-3">
                         <div class="chat-avatar">
                             <i class="fas fa-brain"></i>
                         </div>
                         <div>
-                            <strong class="d-block text-main">Ajith AI Assistant</strong>
+                            <div class="d-flex align-items-center gap-2">
+                                <strong class="d-block text-main">Ajith AI Assistant</strong>
+                                <span class="chat-header-badge"><i class="fas fa-microchip"></i> Reasoning Engine</span>
+                            </div>
                             <small class="text-success"><i class="fas fa-circle-check"></i> Knowledge Base Active</small>
                         </div>
                     </div>
+                    <button class="chat-clear-btn" id="ai-clear-btn" onclick="clearAIChat()" title="Clear Conversation">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                 </div>
 
                 <div class="chat-body" id="ai-chat-body">
                     <div class="chat-msg bot">
                         <div class="chat-avatar"><i class="fas fa-robot"></i></div>
                         <div class="chat-bubble">
-                            👋 Hi there! I'm Ajith's interactive AI assistant. Click one of the quick prompts below or type your question!
+                            👋 Hi there! I'm Ajith's AI Assistant with step-by-step reasoning enabled. Ask me anything about Ajith's <strong>experience</strong>, <strong>AI expertise</strong>, or <strong>top projects</strong>!
                         </div>
                     </div>
                 </div>
@@ -252,7 +256,7 @@
                 </div>
 
                 <div class="chat-input-area">
-                    <input type="text" class="chat-input" id="ai-chat-input" placeholder="Type a message (e.g. 'Tell me about Ajith's Python & LLM experience')...">
+                    <input type="text" class="chat-input" id="ai-chat-input" placeholder="Ask a question (e.g. 'Tell me about Ajith's Python & LLM experience')...">
                     <button class="chat-send-btn" id="ai-send-btn" title="Send Message">
                         <i class="fas fa-paper-plane"></i>
                     </button>

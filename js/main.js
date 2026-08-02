@@ -200,12 +200,22 @@ function initProjectFilter() {
  * ------------------------------------------------------------- */
 function initSmoothScroll() {
     $('a[href^="#"]').on('click', function(event) {
-        const target = $(this.getAttribute('href'));
+        const href = this.getAttribute('href');
+        if (!href || href === '#') return;
+        
+        const target = $(href);
         if (target.length) {
             event.preventDefault();
+            const navbarHeight = $('.navbar-custom').outerHeight() || 75;
+            const targetOffset = target.offset().top - navbarHeight - 15;
+
             $('html, body').stop().animate({
-                scrollTop: target.offset().top - 80
-            }, 500);
+                scrollTop: targetOffset
+            }, 500, function() {
+                if (href === '#ai-assistant') {
+                    $('#ai-chat-input').focus();
+                }
+            });
         }
     });
 }
