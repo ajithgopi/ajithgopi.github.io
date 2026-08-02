@@ -80,29 +80,211 @@ body {
     transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
-/* Ambient Background Glow */
-body::before {
-    content: '';
-    position: fixed;
-    top: -20%;
-    left: -10%;
-    width: 50vw;
-    height: 50vw;
-    background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+/* Override Bootstrap section opaque backgrounds to allow background animations to show */
+.bg-dark-subtle, section {
+    background-color: transparent !important;
+}
+
+/* Scrollable Ambient Background Container */
+.scroll-bg-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     pointer-events: none;
     z-index: -2;
 }
 
-body::after {
-    content: '';
-    position: fixed;
-    bottom: -20%;
-    right: -10%;
-    width: 60vw;
-    height: 60vw;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.08) 0%, transparent 70%);
+.scroll-bg-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
     pointer-events: none;
-    z-index: -2;
+    will-change: transform;
+}
+
+.orb-1 {
+    top: 2%;
+    left: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(2, 132, 199, 0.3) 0%, rgba(56, 189, 248, 0.1) 70%);
+    animation: floatGlowPrimary 18s infinite ease-in-out;
+}
+
+[data-theme="dark"] .orb-1 {
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(2, 132, 199, 0.12) 70%);
+}
+
+.orb-2 {
+    top: 25%;
+    right: -10%;
+    width: 650px;
+    height: 650px;
+    background: radial-gradient(circle, rgba(147, 51, 234, 0.28) 0%, rgba(168, 85, 247, 0.1) 70%);
+    animation: floatGlowSecondary 22s infinite ease-in-out;
+}
+
+[data-theme="dark"] .orb-2 {
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, rgba(129, 140, 248, 0.12) 70%);
+}
+
+.orb-3 {
+    top: 50%;
+    left: -5%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(5, 150, 105, 0.25) 0%, rgba(16, 185, 129, 0.08) 70%);
+    animation: floatGlowPrimary 25s infinite ease-in-out reverse;
+}
+
+[data-theme="dark"] .orb-3 {
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.32) 0%, rgba(5, 150, 105, 0.12) 70%);
+}
+
+.orb-4 {
+    top: 75%;
+    right: -5%;
+    width: 650px;
+    height: 650px;
+    background: radial-gradient(circle, rgba(2, 132, 199, 0.28) 0%, rgba(147, 51, 234, 0.1) 70%);
+    animation: floatGlowSecondary 20s infinite ease-in-out;
+}
+
+[data-theme="dark"] .orb-4 {
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.32) 0%, rgba(168, 85, 247, 0.12) 70%);
+}
+
+/* Ambient Background Grid Pattern */
+.bg-mesh-pattern {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-image: 
+        linear-gradient(to right, rgba(2, 132, 199, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(2, 132, 199, 0.06) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none;
+    z-index: -3;
+    opacity: 0.85;
+}
+
+[data-theme="dark"] .bg-mesh-pattern {
+    background-image: 
+        linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+}
+
+/* Scroll Reveal Animations */
+.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(35px);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Floating AI Chat FAB Button */
+.floating-ai-btn {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #059669 0%, #0284c7 100%);
+    color: #ffffff !important;
+    padding: 12px 20px;
+    border-radius: var(--radius-pill);
+    box-shadow: 0 8px 25px rgba(5, 150, 105, 0.45);
+    text-decoration: none;
+    transition: var(--transition-normal);
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.floating-ai-btn:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 12px 35px rgba(5, 150, 105, 0.65);
+    color: #ffffff !important;
+}
+
+.floating-ai-icon {
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.floating-ai-tooltip {
+    font-size: 0.88rem;
+    font-weight: 700;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+}
+
+.floating-ai-pulse {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 12px;
+    height: 12px;
+    background: #34d399;
+    border: 2px solid var(--bg-dark);
+    border-radius: 50%;
+    animation: pulseBadge 1.8s infinite;
+}
+
+@keyframes pulseBadge {
+    0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
+    100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+/* Smooth Background Keyframe Animations */
+@keyframes floatGlowPrimary {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    33% {
+        transform: translate(8vw, 10vh) scale(1.2);
+    }
+    66% {
+        transform: translate(-6vw, 7vh) scale(0.88);
+    }
+}
+
+@keyframes floatGlowSecondary {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    33% {
+        transform: translate(-9vw, -8vh) scale(1.22);
+    }
+    66% {
+        transform: translate(6vw, -6vh) scale(0.9);
+    }
+}
+
+@keyframes floatGlowCenter {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translate(-42%, -58%) scale(1.25);
+        opacity: 0.85;
+    }
 }
 
 /* Scrollbar */

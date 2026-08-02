@@ -6,6 +6,7 @@ $(document).ready(function() {
     initAIAssistant();
     initSmoothScroll();
     initCounters();
+    initScrollReveal();
 });
 
 /* -------------------------------------------------------------
@@ -88,119 +89,6 @@ function initHeroTyping() {
     type();
 }
 
-/* -------------------------------------------------------------
- * 2. Interactive AI Assistant Sandbox ("Ajith AI")
- * ------------------------------------------------------------- */
-const aiKnowledgeBase = [
-    {
-        keywords: ["ai", "machine learning", "llm", "rag", "agent", "prompt", "gpt", "claude", "deep learning"],
-        answer: "🤖 <strong>Ajith's AI & Automation Expertise:</strong><br>Ajith prioritizes AI-based development (Claude/OpenAI/Ollama) with in-sprint automation. He designs custom RAG pipelines, context-aware document search, and LLM integrations across Node.js, Python, React, and AWS microservices!"
-    },
-    {
-        keywords: ["project", "portfolio", "built", "apps", "work", "reach52", "tutorhow", "insights", "gold vault"],
-        answer: "⚡ <strong>Key CV Projects:</strong><br>1. <strong>Emirates NBD Corporate Banking:</strong> RM daily management & deal platforms (React, Node, MongoDB, OracleDB).<br>2. <strong>reach52 insights & connect:</strong> Enterprise analytical monitoring & admin automation (Node, React, Angular, AWS EKS, PostgreSQL).<br>3. <strong>Tutorhow Virtual Front Desk & ETO:</strong> Multi-tenant edtech & PWA applications (Next.js, Golang, Laravel, Redis, Neo4J).<br>4. <strong>Gold Vault Tracker:</strong> Precious metal tracking iOS/Android app."
-    },
-    {
-        keywords: ["skill", "stack", "technology", "languages", "tech", "python", "react", "node", "aws"],
-        answer: "🛠️ <strong>Core Tech Stack from CV:</strong><br>• <strong>Languages:</strong> JavaScript (ES6+), TypeScript, Python, Swift, Kotlin, PHP, SQL<br>• <strong>Frontend:</strong> React, Next.js, Angular, Redux, Tailwind CSS, Bootstrap, HTML5/CSS3<br>• <strong>Backend & Cloud:</strong> Node.js, Express, Laravel, AWS (EKS, EC2, Lambda, S3, RDS, ElastiCache), Docker, K8s<br>• <strong>Databases:</strong> MongoDB, PostgreSQL, MySQL, MariaDB, Redis, DynamoDB, Neo4J, OracleDB"
-    },
-    {
-        keywords: ["experience", "background", "career", "work", "job", "emirates", "synechron", "reach52", "tutorhow", "infosys", "dubai"],
-        answer: "💼 <strong>Professional Experience:</strong><br>• <strong>Emirates NBD (Synechron)</strong> | Dubai, UAE (11/2024 - Present): Corporate Banking Applications & AI-driven dev.<br>• <strong>reach52 Pte. Ltd.</strong> | Singapore (01/2022 - 11/2024): Full Stack Engineer & Cloud Microservices.<br>• <strong>Tutorhow Scientific Edutech</strong> | India (01/2020 - 12/2021): Lead Developer (PWA, Video/Audio streaming, Mobile Apps).<br>• <strong>Infosys Ltd.</strong> | India (06/2019 - 01/2020): Systems Engineer (Python & ServiceNow)."
-    },
-    {
-        keywords: ["contact", "email", "hire", "hire me", "reach", "linkedin", "github", "phone", "dubai"],
-        answer: "📬 <strong>Get in Touch:</strong><br>• Email: <a href='mailto:ajithgopikklm@gmail.com' class='text-info'>ajithgopikklm@gmail.com</a> / <a href='mailto:me@agopi.in' class='text-info'>me@agopi.in</a><br>• Phone: <span class='text-light'>(+971) 555-166-278</span> (Dubai, UAE)<br>• LinkedIn: <a href='https://www.linkedin.com/in/ahgopi/' target='_blank' class='text-info'>linkedin.com/in/ahgopi</a><br>• GitHub: <a href='https://github.com/ajithgopi' target='_blank' class='text-info'>github.com/ajithgopi</a>"
-    },
-    {
-        keywords: ["education", "degree", "university", "college", "mg university"],
-        answer: "🎓 <strong>Education:</strong><br>• <strong>Degree:</strong> Bachelor of Computer Application (BCA)<br>• <strong>University:</strong> Mahatma Gandhi University, Kottayam, India (2016 - 2019)<br>• <strong>Grade:</strong> 7.7 CGPA"
-    }
-];
-
-function initAIAssistant() {
-    const chatBody = document.getElementById("ai-chat-body");
-    const chatInput = document.getElementById("ai-chat-input");
-    const sendBtn = document.getElementById("ai-send-btn");
-
-    if (!chatBody || !chatInput || !sendBtn) return;
-
-    window.sendAIPrompt = function(text) {
-        appendUserMessage(text);
-        processAIResponse(text);
-    };
-
-    sendBtn.addEventListener("click", function() {
-        const text = chatInput.value.trim();
-        if (text) {
-            appendUserMessage(text);
-            chatInput.value = "";
-            processAIResponse(text);
-        }
-    });
-
-    chatInput.addEventListener("keypress", function(e) {
-        if (e.key === "Enter") {
-            sendBtn.click();
-        }
-    });
-
-    function appendUserMessage(text) {
-        const userMsgHtml = `
-            <div class="chat-msg user">
-                <div class="chat-bubble">${escapeHtml(text)}</div>
-            </div>
-        `;
-        chatBody.insertAdjacentHTML("beforeend", userMsgHtml);
-        chatBody.scrollTop = chatBody.scrollHeight;
-    }
-
-    function processAIResponse(query) {
-        // Show typing indicator
-        const typingId = "typing-" + Date.now();
-        const typingHtml = `
-            <div class="chat-msg bot" id="${typingId}">
-                <div class="chat-avatar"><i class="fas fa-robot"></i></div>
-                <div class="chat-bubble text-muted"><i class="fas fa-ellipsis-h fa-spin"></i> AI is thinking...</div>
-            </div>
-        `;
-        chatBody.insertAdjacentHTML("beforeend", typingHtml);
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        setTimeout(() => {
-            document.getElementById(typingId)?.remove();
-
-            const queryLower = query.toLowerCase();
-            let matchedAnswer = null;
-
-            for (const item of aiKnowledgeBase) {
-                if (item.keywords.some(kw => queryLower.includes(kw))) {
-                    matchedAnswer = item.answer;
-                    break;
-                }
-            }
-
-            if (!matchedAnswer) {
-                matchedAnswer = "🚀 Ajith is a full-stack engineer and AI developer! Try asking about his <strong>AI expertise</strong>, <strong>core tech stack</strong>, <strong>projects</strong>, or <strong>contact info</strong>.";
-            }
-
-            const botMsgHtml = `
-                <div class="chat-msg bot">
-                    <div class="chat-avatar"><i class="fas fa-robot"></i></div>
-                    <div class="chat-bubble">${matchedAnswer}</div>
-                </div>
-            `;
-            chatBody.insertAdjacentHTML("beforeend", botMsgHtml);
-            chatBody.scrollTop = chatBody.scrollHeight;
-        }, 600);
-    }
-}
-
-function escapeHtml(text) {
-    const div = document.createElement("div");
-    div.innerText = text;
-    return div.innerHTML;
-}
 
 /* -------------------------------------------------------------
  * 3. Skill Matrix Category & Search Filtering
@@ -346,4 +234,45 @@ function initCounters() {
 
     window.addEventListener('scroll', checkScroll);
     checkScroll();
+}
+
+/* -------------------------------------------------------------
+ * 7. Scroll-Triggered Reveal Animations
+ * ------------------------------------------------------------- */
+function initScrollReveal() {
+    const selector = '.ai-card, .skill-card, .project-card, .timeline-content, .stat-box, .glass-card, section h2, .section-tag';
+    const targetElements = document.querySelectorAll(selector);
+
+    targetElements.forEach(el => {
+        el.classList.add('reveal-on-scroll');
+    });
+
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                }
+            });
+        }, {
+            threshold: 0.12,
+            rootMargin: '0px 0px -40px 0px'
+        });
+
+        targetElements.forEach(el => observer.observe(el));
+    } else {
+        // Fallback for older browsers
+        targetElements.forEach(el => el.classList.add('is-visible'));
+    }
+
+    // Floating AI FAB button click handler: Focus chat input on click
+    const floatingBtn = document.getElementById('floating-ai-btn');
+    if (floatingBtn) {
+        floatingBtn.addEventListener('click', function(e) {
+            setTimeout(() => {
+                const chatInput = document.getElementById('ai-chat-input');
+                if (chatInput) chatInput.focus();
+            }, 550);
+        });
+    }
 }

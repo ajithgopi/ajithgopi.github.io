@@ -37,6 +37,15 @@
 </head>
 
 <body>
+    <!-- Scrollable Ambient Background Layer -->
+    <div class="scroll-bg-container">
+        <div class="scroll-bg-orb orb-1"></div>
+        <div class="scroll-bg-orb orb-2"></div>
+        <div class="scroll-bg-orb orb-3"></div>
+        <div class="scroll-bg-orb orb-4"></div>
+    </div>
+    <div class="bg-mesh-pattern"></div>
+
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
         <div class="container">
@@ -579,17 +588,17 @@
                 <div class="col-md-6 col-lg-4 project-item" data-category="mobile">
                     <div class="project-card">
                         <div class="project-header-bg">
-                            <span class="badge bg-primary project-badge"><i class="fab fa-apple"></i> iOS & Android</span>
+                            <span class="badge bg-primary project-badge"><i class="fab fa-apple"></i> iOS</span>
                             <h4 class="project-header-title mb-0">Gold Vault Tracker</h4>
                         </div>
                         <div class="project-body">
                             <h5 class="project-title">Gold Vault Investment App</h5>
                             <p class="project-desc">
-                                Native iOS and Android asset tracking application featuring custom WidgetKit extensions, real-time market APIs, and biometric authentication.
+                                Native iOS asset tracking application featuring custom WidgetKit extensions, real-time market APIs, and biometric authentication.
                             </p>
                             <div class="chip-list">
                                 <span class="tag-chip">Swift / iOS</span>
-                                <span class="tag-chip">Kotlin</span>
+                                <span class="tag-chip">SwiftUI</span>
                                 <span class="tag-chip">WidgetKit</span>
                             </div>
                         </div>
@@ -755,9 +764,19 @@
         </div>
     </footer>
 
+    <!-- Floating AI Assistant FAB Button -->
+    <a href="#ai-assistant" class="floating-ai-btn" id="floating-ai-btn" title="Chat with Ajith's AI Assistant">
+        <div class="floating-ai-icon">
+            <i class="fas fa-robot"></i>
+        </div>
+        <span class="floating-ai-tooltip">Ask AI Assistant</span>
+        <span class="floating-ai-pulse"></span>
+    </a>
+
     <!-- JS Dependencies -->
     <script src="js/jquery-3.5.1.min.js"></script>
     <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/ai-assistant.js"></script>
     <script src="js/main.js?v=20260802"></script>
 </body>
 
