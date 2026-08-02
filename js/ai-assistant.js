@@ -56,6 +56,41 @@ const aiKnowledgeBase = [
     }
 ];
 
+// Tech Matrix with Specific Years & Experience Details
+const techExperienceMap = {
+    "javascript": { name: "JavaScript", years: "7+", role: "Full Stack Development & SPAs", details: "Core language used extensively across React, Next.js, Node.js, Express, and PWAs." },
+    "js": { name: "JavaScript", years: "7+", role: "Full Stack Development & SPAs", details: "Core language used extensively across React, Next.js, Node.js, Express, and PWAs." },
+    "typescript": { name: "TypeScript", years: "5+", role: "Enterprise Architecture & Microservices", details: "Strict type-safe development across React, Node.js, and cloud microservices." },
+    "ts": { name: "TypeScript", years: "5+", role: "Enterprise Architecture & Microservices", details: "Strict type-safe development across React, Node.js, and cloud microservices." },
+    "react": { name: "React / Next.js", years: "6+", role: "Frontend UI Architecture", details: "Building RM deal platforms at Emirates NBD, analytical dashboards, and enterprise PWAs." },
+    "node": { name: "Node.js", years: "6+", role: "Backend Microservices & REST/GraphQL APIs", details: "Architecting scalable Node.js microservices with Express, MongoDB, PostgreSQL, and AWS." },
+    "nodejs": { name: "Node.js", years: "6+", role: "Backend Microservices & REST/GraphQL APIs", details: "Architecting scalable Node.js microservices with Express, MongoDB, PostgreSQL, and AWS." },
+    "express": { name: "Express.js", years: "6+", role: "Backend Microservices & APIs", details: "Building enterprise REST APIs and microservice gateways." },
+    "python": { name: "Python", years: "4+", role: "AI RAG Pipelines & Backend Automation", details: "Custom LLM integrations (Claude/OpenAI/Ollama), document vector search, and FastAPI/Flask." },
+    "ai": { name: "AI & LLM Engineering", years: "3+", role: "AI Architecture & RAG Pipelines", details: "Designing custom RAG pipelines, prompt engineering, vector indexing, and automated workflows." },
+    "llm": { name: "LLM Integrations", years: "3+", role: "AI Architecture & Prompt Engineering", details: "Integrating OpenAI, Claude, and Ollama models into enterprise microservices." },
+    "rag": { name: "RAG Pipelines", years: "3+", role: "Vector Search & Retrieval Augmented Gen", details: "Building context-aware document retrieval and custom vector search engines." },
+    "swift": { name: "Swift / iOS", years: "3+", role: "Native iOS Mobile Apps", details: "Built native iOS apps like Gold Vault Tracker featuring WidgetKit extensions and biometric security." },
+    "ios": { name: "iOS Development", years: "3+", role: "Native iOS Mobile Apps", details: "Built native iOS apps like Gold Vault Tracker featuring WidgetKit extensions and biometric security." },
+    "kotlin": { name: "Kotlin", years: "3+", role: "Mobile Application Development", details: "Cross-platform and native mobile software development." },
+    "android": { name: "Android", years: "3+", role: "Mobile Application Development", details: "Cross-platform and native mobile software development." },
+    "aws": { name: "AWS & Cloud", years: "4+", role: "Cloud Infrastructure & Serverless", details: "Deploying and managing microservices on AWS Lambda, S3, ECS, EC2, and API Gateways." },
+    "cloud": { name: "AWS Cloud", years: "4+", role: "Cloud Infrastructure & Serverless", details: "Deploying and managing microservices on AWS Lambda, S3, ECS, EC2, and API Gateways." },
+    "docker": { name: "Docker", years: "4+", role: "Containerization & CI/CD", details: "Containerizing microservices for seamless cloud deployments and staging environments." },
+    "k8s": { name: "Kubernetes", years: "3+", role: "Container Orchestration", details: "Managing containerized microservice deployments and scaling." },
+    "kubernetes": { name: "Kubernetes", years: "3+", role: "Container Orchestration", details: "Managing containerized microservice deployments and scaling." },
+    "mongodb": { name: "MongoDB", years: "5+", role: "NoSQL Database Engineering", details: "Designed high-performance MongoDB schemas for Emirates NBD deal platforms and reach52." },
+    "sql": { name: "SQL & Relational DBs", years: "6+", role: "Relational Database Management", details: "PostgreSQL, MySQL, and OracleDB schema optimization and query execution." },
+    "postgresql": { name: "PostgreSQL", years: "5+", role: "Relational Database Management", details: "PostgreSQL database architecture and data pipelines." },
+    "postgres": { name: "PostgreSQL", years: "5+", role: "Relational Database Management", details: "PostgreSQL database architecture and data pipelines." },
+    "oracledb": { name: "OracleDB", years: "2+", role: "Enterprise Banking Database", details: "Used at Emirates NBD for corporate banking management systems." },
+    "angular": { name: "Angular", years: "3+", role: "Frontend Development", details: "Building modular enterprise frontend portals." },
+    "php": { name: "PHP / Laravel", years: "4+", role: "Full Stack & Web APIs", details: "Laravel backend services and REST APIs." },
+    "laravel": { name: "Laravel", years: "4+", role: "Backend Web Framework", details: "Building robust MVC web backends and API endpoints." },
+    "next.js": { name: "Next.js", years: "3+", role: "SSR & React Web Apps", details: "Building performant web applications with Next.js." },
+    "nextjs": { name: "Next.js", years: "3+", role: "SSR & React Web Apps", details: "Building performant web applications with Next.js." }
+};
+
 const fallbackAnswers = [
     { text: "🎯 As an AI assistant specialized in Ajith's professional portfolio, I focus strictly on his career, skills, and projects! Try asking about his <strong>AI expertise</strong>, <strong>core tech stack</strong>, <strong>projects</strong>, or <strong>contact info</strong>.", qid: null },
     { text: "📌 That topic falls outside my domain parameters. I am dedicated to assisting with Ajith's professional background. Would you like me to summarize his <strong>experience</strong>?", qid: "ask_experience" },
@@ -128,20 +163,88 @@ function initAIAssistant() {
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
-    function generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore) {
+    // Smart technology & experience intent parser
+    function parseTechOrExperienceIntent(queryLower) {
+        const words = queryLower.match(/\b\w+\b/g) || [];
+        
+        const isTotalExpQuery = (
+            (queryLower.includes("total") || queryLower.includes("overall") || queryLower.includes("career")) &&
+            (queryLower.includes("experience") || queryLower.includes("years") || queryLower.includes("working"))
+        ) || queryLower === "what is your total experience" || queryLower === "total experience";
+
+        if (isTotalExpQuery) {
+            return {
+                type: "total_experience",
+                reasoning: "Parsed intent: Total Experience Request -> Calculated 7+ years across enterprise roles (since June 2019).",
+                answer: "💼 <strong>Ajith's Total Experience:</strong><br>Ajith has <strong>7+ years of total professional software engineering experience</strong> (since June 2019), specializing in <strong>Full Stack Development, AI Engineering, and Cloud Microservices</strong> across leading organizations like Emirates NBD, reach52, Tutorhow, and Infosys."
+            };
+        }
+
+        // Check if query is asking for years of experience or "do you know" for a specific technology
+        const isExpQuery = queryLower.includes("experience") || queryLower.includes("years") || queryLower.includes("how long");
+        const isDoYouKnowQuery = queryLower.includes("do you know") || queryLower.includes("does ajith know") || queryLower.includes("knows") || queryLower.includes("familiar");
+
+        // Search tech map for matched technology
+        for (const [key, techObj] of Object.entries(techExperienceMap)) {
+            // Match tech keyword (e.g. "python", "react", "swift")
+            const regex = new RegExp(`\\b${key}\\b`, 'i');
+            if (regex.test(queryLower)) {
+                if (isDoYouKnowQuery) {
+                    return {
+                        type: "tech_know",
+                        techName: techObj.name,
+                        reasoning: `Extracted technology entity: [${techObj.name}] -> Evaluated capabilities & verified ${techObj.years} experience.`,
+                        answer: `✅ <strong>Yes, Ajith knows ${techObj.name}!</strong><br>He has <strong>${techObj.years} of hands-on experience in ${techObj.name}</strong> (${techObj.role}). ${techObj.details}`
+                    };
+                } else if (isExpQuery) {
+                    return {
+                        type: "tech_experience",
+                        techName: techObj.name,
+                        reasoning: `Extracted technology entity: [${techObj.name}] -> Queried experience matrix (${techObj.years} experience).`,
+                        answer: `⚡ <strong>${techObj.name} Experience:</strong><br>Ajith has <strong>${techObj.years} of hands-on experience working with ${techObj.name}</strong>. He specializes in <strong>${techObj.role}</strong> — ${techObj.details}`
+                    };
+                } else {
+                    return {
+                        type: "tech_general",
+                        techName: techObj.name,
+                        reasoning: `Extracted technology entity: [${techObj.name}] -> Formulated skill summary (${techObj.years} experience).`,
+                        answer: `🛠️ <strong>${techObj.name} Expertise:</strong><br>Ajith brings <strong>${techObj.years} of experience in ${techObj.name}</strong> (${techObj.role}). ${techObj.details}`
+                    };
+                }
+            }
+        }
+
+        // Handle "Do you know [Unknown Tech]?" inquiries
+        if (isDoYouKnowQuery) {
+            // Extract potential technology word
+            const unknownTech = words.find(w => !["do", "you", "know", "does", "ajith", "he", "is", "with", "any", "about", "have"].includes(w));
+            const techLabel = unknownTech ? unknownTech.charAt(0).toUpperCase() + unknownTech.slice(1) : "this technology";
+            return {
+                type: "unknown_tech",
+                techName: techLabel,
+                reasoning: `Evaluating unknown tech entity: [${techLabel}] against core stack -> Entity identified as secondary/adjacent tool.`,
+                answer: `ℹ️ <strong>Technology Capability:</strong><br>Ajith's core tech stack centers around <strong>JavaScript/TypeScript (7+ yrs), React (6+ yrs), Node.js (6+ yrs), Python (4+ yrs), AI/LLMs (3+ yrs), and AWS (4+ yrs)</strong>. While <strong>${techLabel}</strong> is not listed as his primary framework, as a senior engineer with <strong>7+ years of experience</strong>, he adapts to new tools & languages quickly!`
+            };
+        }
+
+        return null;
+    }
+
+    function generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore, techIntent) {
         const queryShort = query.length > 32 ? query.substring(0, 32) + '...' : query;
         const steps = [];
 
         // 1. NLP & Token Analysis
         steps.push(`Tokenizing query: "${queryShort}" & evaluating domain scope...`);
 
-        // Add dynamic extra reasoning step for longer or multi-word queries
         if (query.length > 20 || query.includes(" ")) {
             steps.push(`Running intent classifier & embedding distance check...`);
         }
 
         // 2. Knowledge Retrieval & Vector Search
-        if (isContextMatch) {
+        if (techIntent) {
+            steps.push(techIntent.reasoning);
+        } else if (isContextMatch) {
             steps.push(`Context memory active -> Evaluating conversational sentiment & thread state...`);
         } else if (matchedItem) {
             steps.push(`Querying CV Knowledge Base -> Matched entity: [${matchedItem.id}] (Relevance Score: ${matchedScore || 3})`);
@@ -150,7 +253,7 @@ function initAIAssistant() {
         }
 
         // 3. Response Generation
-        steps.push(`Formulating structured response & applying output formatting...`);
+        steps.push(`Formulating structured response with highlighted metrics & output formatting...`);
 
         return steps;
     }
@@ -168,8 +271,14 @@ function initAIAssistant() {
         let matchedScore = 0;
         let isContextMatch = false;
 
+        // 0. Check Technology / Years of Experience Intent First
+        const techIntent = parseTechOrExperienceIntent(queryLower);
+        if (techIntent) {
+            matchedAnswer = techIntent.answer;
+        }
+
         // 1. Check pending context
-        if (pendingQuestion) {
+        if (!matchedAnswer && pendingQuestion) {
             const sentiment = analyzeSentiment(queryLower);
             isContextMatch = true;
             
@@ -238,7 +347,7 @@ function initAIAssistant() {
         
         pendingQuestion = nextPendingQuestion;
 
-        const reasoningSteps = generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore);
+        const reasoningSteps = generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore, techIntent);
 
         // Render initial thinking state
         const initialBotMsgHtml = `
@@ -263,7 +372,6 @@ function initAIAssistant() {
         const thoughtContentEl = document.getElementById(`${msgId}-thought-content`);
         let stepIdx = 0;
 
-        // Dynamic step-by-step thinking animation with randomized per-step timing
         function unfoldNextStep() {
             if (stepIdx < reasoningSteps.length) {
                 const stepHtml = `
@@ -276,11 +384,9 @@ function initAIAssistant() {
                     chatBody.scrollTop = chatBody.scrollHeight;
                 }
                 stepIdx++;
-                // Dynamic randomized delay per step (120ms - 320ms)
                 const nextDelay = Math.floor(Math.random() * 200) + 120;
                 setTimeout(unfoldNextStep, nextDelay);
             } else {
-                // Finalize thinking block with dynamic completion delay
                 const finalDelay = Math.floor(Math.random() * 250) + 150;
                 setTimeout(() => {
                     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -315,7 +421,6 @@ function initAIAssistant() {
             }
         }
 
-        // Start unfolding first step after brief initial delay
         setTimeout(unfoldNextStep, Math.floor(Math.random() * 150) + 100);
     }
 }
