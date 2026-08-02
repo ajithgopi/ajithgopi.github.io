@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------
  * Interactive AI Assistant Sandbox ("Ajith AI") with Reasoning Engine
- * Features: Fuzzy Spelling Corrector, Dynamic Response Synthesizer,
+ * Features: Robust Context Threading & Follow-Up Tracking,
+ * Fuzzy Spelling Corrector, Dynamic Response Synthesizer,
  * Generative Token Streaming, and Interactive Advice Prompts.
  * ------------------------------------------------------------- */
 
@@ -164,21 +165,21 @@ const fallbackAnswers = [
     { text: "⚡ My primary directive is providing information on Ajith's technical portfolio. Would you like to see the core technologies Ajith uses (like <strong>React, Python, or AWS</strong>)?", qid: "ask_skills" }
 ];
 
-const positiveWords = ["yes", "yeah", "yep", "sure", "ok", "okay", "please", "absolutely", "definitely", "course"];
+const positiveWords = ["yes", "yeah", "yep", "sure", "ok", "okay", "please", "absolutely", "definitely", "course", "yup"];
 const negativeWords = ["no", "nope", "nah", "never", "don't", "stop", "nothing", "none"];
 
-// Dynamic Generative Response Templates
+// Outros with explicit Question ID (qid) state binding
+const generalOutros = [
+    { text: "<br><br>💡 <em>Would you like to explore Ajith's project portfolio or inspect his core technology stack?</em>", qid: "ask_projects_or_skills" },
+    { text: "<br><br>💡 <em>Feel free to ask about his specific professional experience or corporate banking work.</em>", qid: "ask_experience" },
+    { text: "<br><br>💡 <em>Shall I provide details on his contact information?</em>", qid: "ask_contact" }
+];
+
 const techIntros = [
     "Ajith brings extensive hands-on expertise to ",
     "Regarding ",
     "Ajith has a proven track record working with ",
     "With extensive professional experience in "
-];
-
-const generalOutros = [
-    "<br><br>💡 <em>Would you like to explore Ajith's project portfolio or inspect his core technology stack?</em>",
-    "<br><br>💡 <em>Feel free to ask about his specific corporate banking work at Emirates NBD or cloud architecture.</em>",
-    "<br><br>💡 <em>Shall I provide details on his contact information or resume background?</em>"
 ];
 
 function getRandomItem(arr) {
@@ -258,11 +259,12 @@ function initAIAssistant() {
         ) || queryLower === "what is your total experience" || queryLower === "total experience";
 
         if (isTotalExpQuery) {
-            const outro = getRandomItem(generalOutros);
+            const outroObj = getRandomItem(generalOutros);
             return {
                 type: "total_experience",
                 reasoning: "Parsed intent: Total Experience Request -> Calculated 7+ years across enterprise roles (since June 2019).",
-                answer: `💼 <strong>Ajith's Total Experience:</strong><br>Ajith has <strong>7+ years of total professional software engineering experience</strong> (since June 2019), specializing in <strong>Full Stack Development, AI Architecture, and Cloud Microservices</strong> across leading enterprise organizations like Emirates NBD, reach52, Tutorhow, and Infosys.${outro}`
+                answer: `💼 <strong>Ajith's Total Experience:</strong><br>Ajith has <strong>7+ years of total professional software engineering experience</strong> (since June 2019), specializing in <strong>Full Stack Development, AI Architecture, and Cloud Microservices</strong> across leading enterprise organizations like Emirates NBD, reach52, Tutorhow, and Infosys.${outroObj.text}`,
+                qid: outroObj.qid
             };
         }
 
@@ -274,28 +276,31 @@ function initAIAssistant() {
             const regex = new RegExp(`\\b${key}\\b`, 'i');
             if (regex.test(queryLower)) {
                 const intro = getRandomItem(techIntros);
-                const outro = getRandomItem(generalOutros);
+                const outroObj = getRandomItem(generalOutros);
 
                 if (isDoYouKnowQuery) {
                     return {
                         type: "tech_know",
                         techName: techObj.name,
                         reasoning: `Extracted technology entity: [${techObj.name}] -> Evaluated capabilities & verified ${techObj.years} experience.`,
-                        answer: `✅ <strong>Yes, Ajith knows ${techObj.name}!</strong><br>${intro}<strong>${techObj.name} (${techObj.years} experience)</strong>. ${techObj.details}${outro}`
+                        answer: `✅ <strong>Yes, Ajith knows ${techObj.name}!</strong><br>${intro}<strong>${techObj.name} (${techObj.years} experience)</strong>. ${techObj.details}${outroObj.text}`,
+                        qid: outroObj.qid
                     };
                 } else if (isExpQuery) {
                     return {
                         type: "tech_experience",
                         techName: techObj.name,
                         reasoning: `Extracted technology entity: [${techObj.name}] -> Queried experience matrix (${techObj.years} experience).`,
-                        answer: `⚡ <strong>${techObj.name} Experience:</strong><br>Ajith has <strong>${techObj.years} of hands-on experience working with ${techObj.name}</strong>. He specializes in <strong>${techObj.role}</strong> — ${techObj.details}${outro}`
+                        answer: `⚡ <strong>${techObj.name} Experience:</strong><br>Ajith has <strong>${techObj.years} of hands-on experience working with ${techObj.name}</strong>. He specializes in <strong>${techObj.role}</strong> — ${techObj.details}${outroObj.text}`,
+                        qid: outroObj.qid
                     };
                 } else {
                     return {
                         type: "tech_general",
                         techName: techObj.name,
                         reasoning: `Extracted technology entity: [${techObj.name}] -> Formulated skill summary (${techObj.years} experience).`,
-                        answer: `🛠️ <strong>${techObj.name} Expertise:</strong><br>Ajith brings <strong>${techObj.years} of experience in ${techObj.name}</strong> (${techObj.role}). ${techObj.details}${outro}`
+                        answer: `🛠️ <strong>${techObj.name} Expertise:</strong><br>Ajith brings <strong>${techObj.years} of experience in ${techObj.name}</strong> (${techObj.role}). ${techObj.details}${outroObj.text}`,
+                        qid: outroObj.qid
                     };
                 }
             }
@@ -309,7 +314,8 @@ function initAIAssistant() {
                 type: "unknown_tech",
                 techName: techLabel,
                 reasoning: `Evaluating unknown tech entity: [${techLabel}] against core stack -> Entity identified as secondary/adjacent tool.`,
-                answer: `ℹ️ <strong>Technology Capability:</strong><br>Ajith's core tech stack centers around <strong>JavaScript/TypeScript (7+ yrs), React (6+ yrs), Node.js (6+ yrs), Python (4+ yrs), AI/LLMs (3+ yrs), and AWS (4+ yrs)</strong>. While <strong>${techLabel}</strong> is not listed as his primary framework, as a senior software engineer with <strong>7+ years of experience</strong>, he adapts to new tools & frameworks rapidly!`
+                answer: `ℹ️ <strong>Technology Capability:</strong><br>Ajith's core tech stack centers around <strong>JavaScript/TypeScript (7+ yrs), React (6+ yrs), Node.js (6+ yrs), Python (4+ yrs), AI/LLMs (3+ yrs), and AWS (4+ yrs)</strong>. While <strong>${techLabel}</strong> is not listed as his primary framework, as a senior software engineer with <strong>7+ years of experience</strong>, he adapts to new tools & frameworks rapidly!`,
+                qid: "ask_skills"
             };
         }
 
@@ -334,10 +340,10 @@ function initAIAssistant() {
         }
 
         // 2. Knowledge Retrieval & Vector Search
-        if (techIntent) {
-            steps.push(techIntent.reasoning);
-        } else if (isContextMatch) {
+        if (isContextMatch) {
             steps.push(`Context memory active -> Evaluating conversational sentiment & thread state...`);
+        } else if (techIntent) {
+            steps.push(techIntent.reasoning);
         } else if (matchedItem) {
             steps.push(`Querying CV Knowledge Base -> Matched entity: [${matchedItem.id}] (Relevance Score: ${matchedScore || 3})`);
         } else {
@@ -368,7 +374,7 @@ function initAIAssistant() {
                 clearInterval(streamInterval);
                 if (onComplete) onComplete();
             }
-        }, 18); // Smooth fast token streaming speed
+        }, 18);
     }
 
     function processAIResponse(rawQuery) {
@@ -386,42 +392,63 @@ function initAIAssistant() {
         let matchedScore = 0;
         let isContextMatch = false;
 
-        // 0. Check Technology / Years of Experience Intent
-        const techIntent = parseTechOrExperienceIntent(queryLower);
-        if (techIntent) {
-            matchedAnswer = techIntent.answer;
-        }
-
-        // 1. Check pending context
-        if (!matchedAnswer && pendingQuestion) {
+        // 1. ALWAYS Check pending context thread FIRST!
+        if (pendingQuestion) {
             const sentiment = analyzeSentiment(queryLower);
             isContextMatch = true;
-            
+
             if (sentiment === 'positive') {
-                if (pendingQuestion === 'ask_experience') {
+                if (pendingQuestion === 'ask_contact') {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'contact').answer;
+                } else if (pendingQuestion === 'ask_experience') {
                     matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
                 } else if (pendingQuestion === 'ask_skills') {
                     matchedAnswer = aiKnowledgeBase.find(item => item.id === 'skills').answer;
-                } else if (pendingQuestion === 'ask_contact') {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'contact').answer;
-                } else if (pendingQuestion === 'ask_projects_or_experience') {
+                } else if (pendingQuestion === 'ask_projects') {
                     matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
-                }
-            } else if (sentiment === 'negative') {
-                matchedAnswer = "No problem! Let me know if there's anything else you'd like to ask.";
-            } else {
-                if (pendingQuestion === 'ask_projects_or_experience') {
-                    if (queryLower.includes('project')) {
+                } else if (pendingQuestion === 'ask_projects_or_skills') {
+                    if (queryLower.includes('skill') || queryLower.includes('stack') || queryLower.includes('tech')) {
+                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'skills').answer;
+                    } else {
                         matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
-                    } else if (queryLower.includes('experience')) {
+                    }
+                } else if (pendingQuestion === 'ask_projects_or_experience') {
+                    if (queryLower.includes('exp')) {
                         matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
+                    } else {
+                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
                     }
                 }
+            } else if (sentiment === 'negative') {
+                matchedAnswer = "No problem! Let me know if there's anything else you'd like to ask about Ajith's portfolio.";
+            } else {
+                // Neutral: check if user typed a specific target keyword matching the pending question
+                if (pendingQuestion === 'ask_contact' && (queryLower.includes('contact') || queryLower.includes('email') || queryLower.includes('phone'))) {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'contact').answer;
+                } else if ((pendingQuestion === 'ask_projects_or_skills' || pendingQuestion === 'ask_projects_or_experience') && queryLower.includes('project')) {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
+                } else if (pendingQuestion === 'ask_projects_or_skills' && (queryLower.includes('skill') || queryLower.includes('tech'))) {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'skills').answer;
+                } else if (pendingQuestion === 'ask_projects_or_experience' && (queryLower.includes('exp') || queryLower.includes('career'))) {
+                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
+                }
             }
+            
+            // Reset context memory after handling
             pendingQuestion = null;
         }
 
-        // 2. Knowledge base search
+        // 2. Check Technology / Years of Experience Intent
+        let techIntent = null;
+        if (!matchedAnswer) {
+            techIntent = parseTechOrExperienceIntent(queryLower);
+            if (techIntent) {
+                matchedAnswer = techIntent.answer;
+                nextPendingQuestion = techIntent.qid || null;
+            }
+        }
+
+        // 3. Knowledge base search
         if (!matchedAnswer) {
             let bestMatch = null;
             let highestScore = 0;
@@ -453,7 +480,7 @@ function initAIAssistant() {
             }
         }
 
-        // 3. Fallback
+        // 4. Fallback
         if (!matchedAnswer) {
             const fallback = fallbackAnswers[Math.floor(Math.random() * fallbackAnswers.length)];
             matchedAnswer = fallback.text;
@@ -462,7 +489,7 @@ function initAIAssistant() {
         
         pendingQuestion = nextPendingQuestion;
 
-        // If typos were corrected, add a small polite notice at top of answer
+        // Add auto-correction badge if typos were corrected
         if (corrections && corrections.length > 0) {
             const corrNotice = corrections.map(c => `<strong>"${c.original}"</strong> ➔ <strong>"${c.corrected}"</strong>`).join(", ");
             matchedAnswer = `<small class="text-info d-block mb-2"><i class="fas fa-spell-check me-1"></i> <em>Auto-corrected spelling: ${corrNotice}</em></small>` + matchedAnswer;
@@ -534,7 +561,6 @@ function initAIAssistant() {
                     }
 
                     if (answerEl) {
-                        // Stream the tokenized answer like a real Generative LLM!
                         streamBotAnswer(answerEl, matchedAnswer);
                     }
                     
