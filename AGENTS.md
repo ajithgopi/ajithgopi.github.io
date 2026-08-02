@@ -1,0 +1,1 @@
+all changes must be compaitable with github static hosting.
