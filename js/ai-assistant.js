@@ -1,580 +1,467 @@
-/* -------------------------------------------------------------
- * Interactive AI Assistant Sandbox ("Ajith AI") with Reasoning Engine
- * Features: Robust Context Threading & Follow-Up Tracking,
- * Fuzzy Spelling Corrector, Dynamic Response Synthesizer,
- * Generative Token Streaming, and Interactive Advice Prompts.
- * ------------------------------------------------------------- */
+/* =============================================================
+ * Ajith AI — Chat UI + engine adapters (v3)
+ * -------------------------------------------------------------
+ * Engines:
+ *   builtin  — AjithAI reasoning engine (js/ai-engine.js), instant, offline
+ *   webllm   — real LLM in the browser via WebGPU (@mlc-ai/web-llm),
+ *              loaded on demand; uses the built-in retrieval as RAG context
+ *   ollama   — local Ollama server (http://localhost:11434), same RAG context
+ *
+ * UI: streaming reveal, live reasoning trace, follow-up chips, page
+ * actions, copy/regenerate, voice input, persistence, expand mode.
+ * ============================================================= */
+(function () {
+    'use strict';
 
-const dictionary = [
-    "python", "javascript", "typescript", "react", "node", "express", "swift", "kotlin",
-    "android", "aws", "docker", "kubernetes", "mongodb", "postgresql", "sql", "angular",
-    "php", "laravel", "experience", "projects", "contact", "education", "skills", "salary",
-    "location", "emirates", "tutorhow", "reach52", "infosys", "dubai", "expertise", "portfolio"
-];
+    const STORE_KEY = 'ajith-ai-chat-v3';
+    const SETTINGS_KEY = 'ajith-ai-settings-v3';
+    const MAX_HISTORY = 60;
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function levenshteinDistance(a, b) {
-    if (a.length === 0) return b.length;
-    if (b.length === 0) return a.length;
-    const matrix = [];
-    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-
-    for (let i = 1; i <= b.length; i++) {
-        for (let j = 1; j <= a.length; j++) {
-            if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                matrix[i][j] = matrix[i - 1][j - 1];
-            } else {
-                matrix[i][j] = Math.min(
-                    matrix[i - 1][j - 1] + 1,
-                    matrix[i][j - 1] + 1,
-                    matrix[i - 1][j] + 1
-                );
-            }
-        }
-    }
-    return matrix[b.length][a.length];
-}
-
-function correctTyposInQuery(query) {
-    const words = query.split(/(\s+)/);
-    const corrections = [];
-    
-    const correctedTokens = words.map(token => {
-        const cleanToken = token.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (cleanToken.length < 4) return token;
-        if (dictionary.includes(cleanToken)) return token;
-
-        let bestMatch = null;
-        let minDistance = 3;
-
-        for (const dictWord of dictionary) {
-            const maxDistAllowed = dictWord.length > 5 ? 2 : 1;
-            const dist = levenshteinDistance(cleanToken, dictWord);
-            if (dist <= maxDistAllowed && dist < minDistance) {
-                minDistance = dist;
-                bestMatch = dictWord;
-            }
-        }
-
-        if (bestMatch && bestMatch !== cleanToken) {
-            corrections.push({ original: cleanToken, corrected: bestMatch });
-            return token.toLowerCase().replace(cleanToken, bestMatch);
-        }
-        return token;
-    });
-
-    return {
-        correctedQuery: correctedTokens.join(''),
-        corrections: corrections
-    };
-}
-
-const aiKnowledgeBase = [
-    {
-        id: "expertise",
-        keywords: ["ai", "machine learning", "llm", "rag", "agent", "prompt", "gpt", "claude", "deep learning", "nlp", "artificial intelligence", "ollama", "openai"],
-        answer: "🤖 <strong>Ajith's AI & Automation Expertise:</strong><br>Ajith prioritizes AI-driven engineering (Claude/OpenAI/Ollama) integrated with in-sprint automation. He designs custom RAG pipelines, context-aware document search, and scalable LLM microservices across Node.js, Python, React, and AWS cloud architecture!"
-    },
-    {
-        id: "projects",
-        keywords: ["project", "portfolio", "built", "apps", "work", "reach52", "tutorhow", "insights", "gold vault", "showcase", "github"],
-        answer: "⚡ <strong>Key Enterprise Projects:</strong><br>1. <strong>Emirates NBD Corporate Banking:</strong> RM daily management & deal platforms (React, Node.js, MongoDB, OracleDB).<br>2. <strong>reach52 Insights & Connect:</strong> Enterprise analytical monitoring & admin automation.<br>3. <strong>Tutorhow Virtual Front Desk & ETO:</strong> Multi-tenant edtech & PWA applications.<br>4. <strong>Gold Vault Tracker:</strong> Native iOS precious metal tracking app featuring WidgetKit & biometric security."
-    },
-    {
-        id: "skills",
-        keywords: ["skill", "stack", "technology", "languages", "tech", "python", "react", "node", "aws", "framework", "database", "sql", "mongodb", "docker", "kubernetes", "swift", "kotlin", "php", "javascript", "typescript"],
-        answer: "🛠️ <strong>Core Tech Stack:</strong><br>• <strong>Languages:</strong> JavaScript (ES6+), TypeScript, Python, Swift, Kotlin, PHP, SQL<br>• <strong>Frontend:</strong> React, Next.js, Angular, Redux, Tailwind, Bootstrap<br>• <strong>Backend & Cloud:</strong> Node.js, Express, Laravel, AWS, Docker, Kubernetes<br>• <strong>Databases:</strong> MongoDB, PostgreSQL, MySQL, Redis, DynamoDB, Neo4J, OracleDB"
-    },
-    {
-        id: "experience",
-        keywords: ["experience", "background", "career", "job", "emirates", "synechron", "reach52", "tutorhow", "infosys", "history", "resume", "cv"],
-        answer: "💼 <strong>Professional Experience (7+ Years):</strong><br>• <strong>Emirates NBD (Synechron)</strong> | Dubai (11/2024 - Present): Corporate Banking & AI-driven development.<br>• <strong>reach52</strong> | Singapore (01/2022 - 11/2024): Full Stack Engineer & Cloud Microservices.<br>• <strong>Tutorhow</strong> | India (01/2020 - 12/2021): Lead Developer (PWAs, Video/Audio streaming, Mobile Apps).<br>• <strong>Infosys</strong> | India (06/2019 - 01/2020): Systems Engineer."
-    },
-    {
-        id: "contact",
-        keywords: ["contact", "email", "hire", "reach", "linkedin", "phone", "call", "message", "social", "connect"],
-        answer: "📬 <strong>Get in Touch:</strong><br>• Email: <a href='mailto:ajithgopikklm@gmail.com' class='text-info'>ajithgopikklm@gmail.com</a><br>• Phone: <span class='text-info'>(+971) 555-166-278</span> (Dubai)<br>• LinkedIn: <a href='https://www.linkedin.com/in/ahgopi/' target='_blank' class='text-info'>linkedin.com/in/ahgopi</a><br>• GitHub: <a href='https://github.com/ajithgopi' target='_blank' class='text-info'>github.com/ajithgopi</a>"
-    },
-    {
-        id: "education",
-        keywords: ["education", "degree", "university", "college", "mg university", "bca", "graduate", "study", "studied", "school"],
-        answer: "🎓 <strong>Education:</strong><br>• <strong>Degree:</strong> Bachelor of Computer Application (BCA)<br>• <strong>University:</strong> Mahatma Gandhi University, Kottayam, India (2016 - 2019)<br>• <strong>Grade:</strong> 7.7 CGPA"
-    },
-    {
-        id: "greetings",
-        keywords: ["hi", "hello", "hey", "greetings", "morning", "afternoon", "evening", "who are you", "what are you"],
-        answer: "👋 Hello! I'm Ajith's AI Assistant. Would you like to see a summary of his <strong>projects</strong> or <strong>experience</strong>?",
-        qid: "ask_projects_or_experience"
-    },
-    {
-        id: "thanks",
-        keywords: ["thanks", "thank you", "ok", "great", "awesome", "cool", "nice", "good", "perfect"],
-        answer: "You're welcome! Would you like to know how to get in touch with Ajith?",
-        qid: "ask_contact"
-    },
-    {
-        id: "location",
-        keywords: ["location", "where", "live", "based", "city", "country", "dubai", "uae", "india", "relocate"],
-        answer: "🌍 <strong>Location:</strong> Ajith is currently based in <strong>Dubai, UAE</strong>. He is open to software engineering and AI architecture opportunities!"
-    },
-    {
-        id: "salary",
-        keywords: ["salary", "pay", "compensation", "rate", "cost", "price"],
-        answer: "💰 Regarding compensation or rates, please contact Ajith directly at <a href='mailto:ajithgopikklm@gmail.com' class='text-info'>ajithgopikklm@gmail.com</a> to discuss!"
-    }
-];
-
-// Tech Matrix with Specific Years & Experience Details
-const techExperienceMap = {
-    "javascript": { name: "JavaScript", years: "7+", role: "Full Stack Development & SPAs", details: "Core language used extensively across React, Next.js, Node.js, Express, and PWAs." },
-    "js": { name: "JavaScript", years: "7+", role: "Full Stack Development & SPAs", details: "Core language used extensively across React, Next.js, Node.js, Express, and PWAs." },
-    "typescript": { name: "TypeScript", years: "5+", role: "Enterprise Architecture & Microservices", details: "Strict type-safe development across React, Node.js, and cloud microservices." },
-    "ts": { name: "TypeScript", years: "5+", role: "Enterprise Architecture & Microservices", details: "Strict type-safe development across React, Node.js, and cloud microservices." },
-    "react": { name: "React / Next.js", years: "6+", role: "Frontend UI Architecture", details: "Building RM deal platforms at Emirates NBD, analytical dashboards, and enterprise PWAs." },
-    "node": { name: "Node.js", years: "6+", role: "Backend Microservices & REST/GraphQL APIs", details: "Architecting scalable Node.js microservices with Express, MongoDB, PostgreSQL, and AWS." },
-    "nodejs": { name: "Node.js", years: "6+", role: "Backend Microservices & REST/GraphQL APIs", details: "Architecting scalable Node.js microservices with Express, MongoDB, PostgreSQL, and AWS." },
-    "express": { name: "Express.js", years: "6+", role: "Backend Microservices & APIs", details: "Building enterprise REST APIs and microservice gateways." },
-    "python": { name: "Python", years: "4+", role: "AI RAG Pipelines & Backend Automation", details: "Custom LLM integrations (Claude/OpenAI/Ollama), document vector search, and FastAPI/Flask." },
-    "ai": { name: "AI & LLM Engineering", years: "3+", role: "AI Architecture & RAG Pipelines", details: "Designing custom RAG pipelines, prompt engineering, vector indexing, and automated workflows." },
-    "llm": { name: "LLM Integrations", years: "3+", role: "AI Architecture & Prompt Engineering", details: "Integrating OpenAI, Claude, and Ollama models into enterprise microservices." },
-    "rag": { name: "RAG Pipelines", years: "3+", role: "Vector Search & Retrieval Augmented Gen", details: "Building context-aware document retrieval and custom vector search engines." },
-    "swift": { name: "Swift / iOS", years: "3+", role: "Native iOS Mobile Apps", details: "Built native iOS apps like Gold Vault Tracker featuring WidgetKit extensions and biometric security." },
-    "ios": { name: "iOS Development", years: "3+", role: "Native iOS Mobile Apps", details: "Built native iOS apps like Gold Vault Tracker featuring WidgetKit extensions and biometric security." },
-    "kotlin": { name: "Kotlin", years: "3+", role: "Mobile Application Development", details: "Cross-platform and native mobile software development." },
-    "android": { name: "Android", years: "3+", role: "Mobile Application Development", details: "Cross-platform and native mobile software development." },
-    "aws": { name: "AWS & Cloud", years: "4+", role: "Cloud Infrastructure & Serverless", details: "Deploying and managing microservices on AWS Lambda, S3, ECS, EC2, and API Gateways." },
-    "cloud": { name: "AWS Cloud", years: "4+", role: "Cloud Infrastructure & Serverless", details: "Deploying and managing microservices on AWS Lambda, S3, ECS, EC2, and API Gateways." },
-    "docker": { name: "Docker", years: "4+", role: "Containerization & CI/CD", details: "Containerizing microservices for seamless cloud deployments and staging environments." },
-    "k8s": { name: "Kubernetes", years: "3+", role: "Container Orchestration", details: "Managing containerized microservice deployments and scaling." },
-    "kubernetes": { name: "Kubernetes", years: "3+", role: "Container Orchestration", details: "Managing containerized microservice deployments and scaling." },
-    "mongodb": { name: "MongoDB", years: "5+", role: "NoSQL Database Engineering", details: "Designed high-performance MongoDB schemas for Emirates NBD deal platforms and reach52." },
-    "sql": { name: "SQL & Relational DBs", years: "6+", role: "Relational Database Management", details: "PostgreSQL, MySQL, and OracleDB schema optimization and query execution." },
-    "postgresql": { name: "PostgreSQL", years: "5+", role: "Relational Database Management", details: "PostgreSQL database architecture and data pipelines." },
-    "postgres": { name: "PostgreSQL", years: "5+", role: "Relational Database Management", details: "PostgreSQL database architecture and data pipelines." },
-    "oracledb": { name: "OracleDB", years: "2+", role: "Enterprise Banking Database", details: "Used at Emirates NBD for corporate banking management systems." },
-    "angular": { name: "Angular", years: "3+", role: "Frontend Development", details: "Building modular enterprise frontend portals." },
-    "php": { name: "PHP / Laravel", years: "4+", role: "Full Stack & Web APIs", details: "Laravel backend services and REST APIs." },
-    "laravel": { name: "Laravel", years: "4+", role: "Backend Web Framework", details: "Building robust MVC web backends and API endpoints." },
-    "next.js": { name: "Next.js", years: "3+", role: "SSR & React Web Apps", details: "Building performant web applications with Next.js." },
-    "nextjs": { name: "Next.js", years: "3+", role: "SSR & React Web Apps", details: "Building performant web applications with Next.js." }
-};
-
-const fallbackAnswers = [
-    { text: "🎯 As an AI assistant specialized in Ajith's professional portfolio, I focus strictly on his career, skills, and projects! Try asking about his <strong>AI expertise</strong>, <strong>core tech stack</strong>, <strong>projects</strong>, or <strong>contact info</strong>.", qid: null },
-    { text: "📌 That topic falls outside my domain parameters. I am dedicated to assisting with Ajith's professional background. Would you like me to summarize his <strong>experience</strong>?", qid: "ask_experience" },
-    { text: "⚡ My primary directive is providing information on Ajith's technical portfolio. Would you like to see the core technologies Ajith uses (like <strong>React, Python, or AWS</strong>)?", qid: "ask_skills" }
-];
-
-const positiveWords = ["yes", "yeah", "yep", "sure", "ok", "okay", "please", "absolutely", "definitely", "course", "yup"];
-const negativeWords = ["no", "nope", "nah", "never", "don't", "stop", "nothing", "none"];
-
-// Outros with explicit Question ID (qid) state binding
-const generalOutros = [
-    { text: "<br><br>💡 <em>Would you like to explore Ajith's project portfolio or inspect his core technology stack?</em>", qid: "ask_projects_or_skills" },
-    { text: "<br><br>💡 <em>Feel free to ask about his specific professional experience or corporate banking work.</em>", qid: "ask_experience" },
-    { text: "<br><br>💡 <em>Shall I provide details on his contact information?</em>", qid: "ask_contact" }
-];
-
-const techIntros = [
-    "Ajith brings extensive hands-on expertise to ",
-    "Regarding ",
-    "Ajith has a proven track record working with ",
-    "With extensive professional experience in "
-];
-
-function getRandomItem(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function analyzeSentiment(text) {
-    const words = text.toLowerCase().match(/\b\w+\b/g) || [];
-    let posCount = words.filter(w => positiveWords.includes(w)).length;
-    let negCount = words.filter(w => negativeWords.includes(w)).length;
-    
-    if (posCount > negCount) return 'positive';
-    if (negCount > posCount) return 'negative';
-    return 'neutral';
-}
-
-function clearAIChat() {
-    const chatBody = document.getElementById("ai-chat-body");
-    if (chatBody) {
-        chatBody.innerHTML = `
-            <div class="chat-msg bot">
-                <div class="chat-avatar"><i class="fas fa-robot"></i></div>
-                <div class="chat-bubble">
-                    👋 Hi there! I'm Ajith's AI Assistant with step-by-step reasoning and generative token streaming. Ask me anything about Ajith's <strong>experience</strong>, <strong>AI expertise</strong>, or <strong>top projects</strong>!
-                </div>
-            </div>
-        `;
-    }
-}
-
-function initAIAssistant() {
-    const chatBody = document.getElementById("ai-chat-body");
-    const chatInput = document.getElementById("ai-chat-input");
-    const sendBtn = document.getElementById("ai-send-btn");
-    
-    let pendingQuestion = null;
-
-    if (!chatBody || !chatInput || !sendBtn) return;
-
-    window.sendAIPrompt = function(text) {
-        appendUserMessage(text);
-        processAIResponse(text);
+    const WEBLLM_MODELS = [
+        { id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 0.5B (fast · ~400 MB)' },
+        { id: 'SmolLM2-360M-Instruct-q4f16_1-MLC', label: 'SmolLM2 360M (tiny · ~250 MB)' },
+        { id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC', label: 'Llama 3.2 1B (~700 MB)' },
+        { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 1.5B (best · ~1 GB)' }
+    ];
+    const ENGINE_META = {
+        builtin: { label: 'Built-in', icon: 'fa-microchip', title: 'Built-in reasoning', desc: 'Instant, offline. Intent + entity + BM25 retrieval over the CV.' },
+        webllm: { label: 'WebGPU LLM', icon: 'fa-bolt', title: 'In-browser LLM (WebGPU)', desc: 'Runs a real open model on your GPU. One-time download, then offline.' },
+        ollama: { label: 'Ollama', icon: 'fa-server', title: 'Local Ollama', desc: 'Use any model from an Ollama server on your machine.' }
     };
 
-    sendBtn.addEventListener("click", function() {
-        const text = chatInput.value.trim();
-        if (text) {
-            appendUserMessage(text);
-            chatInput.value = "";
-            processAIResponse(text);
-        }
-    });
+    let engine, settings, history = [], busy = false, aborter = null, lastUserText = '';
+    let webllm = { engine: null, model: null, loading: false };
+    let el = {};
 
-    chatInput.addEventListener("keypress", function(e) {
-        if (e.key === "Enter") {
-            sendBtn.click();
-        }
-    });
-
-    function appendUserMessage(text) {
-        const userMsgHtml = `
-            <div class="chat-msg user">
-                <div class="chat-bubble">${escapeHtml(text)}</div>
-            </div>
-        `;
-        chatBody.insertAdjacentHTML("beforeend", userMsgHtml);
-        chatBody.scrollTop = chatBody.scrollHeight;
+    /* ---------------- helpers ---------------- */
+    const $ = (id) => document.getElementById(id);
+    const sleep = (ms) => new Promise(r => setTimeout(r, reduceMotion ? 0 : ms));
+    const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    function loadJSON(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
+    function saveJSON(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* private mode */ } }
+    function nearBottom() { return el.body.scrollHeight - el.body.scrollTop - el.body.clientHeight < 140; }
+    function scrollToBottom(force) { if (force || nearBottom()) el.body.scrollTop = el.body.scrollHeight; }
+    function setThinking(on) {
+        el.panel.classList.toggle('is-thinking', on);
+        el.status.classList.toggle('is-busy', on);
+        if (window.AjithVisuals) window.AjithVisuals.setExcitement(on ? 1 : 0);
+        el.send.classList.toggle('is-stop', on);
+        el.send.innerHTML = on ? '<i class="fas fa-stop"></i>' : '<i class="fas fa-paper-plane"></i>';
+        el.send.title = on ? 'Stop' : 'Send';
     }
 
-    // Smart technology & experience intent parser with generative variations
-    function parseTechOrExperienceIntent(queryLower) {
-        const words = queryLower.match(/\b\w+\b/g) || [];
-        
-        const isTotalExpQuery = (
-            (queryLower.includes("total") || queryLower.includes("overall") || queryLower.includes("career")) &&
-            (queryLower.includes("experience") || queryLower.includes("years") || queryLower.includes("working"))
-        ) || queryLower === "what is your total experience" || queryLower === "total experience";
-
-        if (isTotalExpQuery) {
-            const outroObj = getRandomItem(generalOutros);
-            return {
-                type: "total_experience",
-                reasoning: "Parsed intent: Total Experience Request -> Calculated 7+ years across enterprise roles (since June 2019).",
-                answer: `💼 <strong>Ajith's Total Experience:</strong><br>Ajith has <strong>7+ years of total professional software engineering experience</strong> (since June 2019), specializing in <strong>Full Stack Development, AI Architecture, and Cloud Microservices</strong> across leading enterprise organizations like Emirates NBD, reach52, Tutorhow, and Infosys.${outroObj.text}`,
-                qid: outroObj.qid
-            };
-        }
-
-        const isExpQuery = queryLower.includes("experience") || queryLower.includes("years") || queryLower.includes("how long");
-        const isDoYouKnowQuery = queryLower.includes("do you know") || queryLower.includes("does ajith know") || queryLower.includes("knows") || queryLower.includes("familiar");
-
-        // Search tech map for matched technology
-        for (const [key, techObj] of Object.entries(techExperienceMap)) {
-            const regex = new RegExp(`\\b${key}\\b`, 'i');
-            if (regex.test(queryLower)) {
-                const intro = getRandomItem(techIntros);
-                const outroObj = getRandomItem(generalOutros);
-
-                if (isDoYouKnowQuery) {
-                    return {
-                        type: "tech_know",
-                        techName: techObj.name,
-                        reasoning: `Extracted technology entity: [${techObj.name}] -> Evaluated capabilities & verified ${techObj.years} experience.`,
-                        answer: `✅ <strong>Yes, Ajith knows ${techObj.name}!</strong><br>${intro}<strong>${techObj.name} (${techObj.years} experience)</strong>. ${techObj.details}${outroObj.text}`,
-                        qid: outroObj.qid
-                    };
-                } else if (isExpQuery) {
-                    return {
-                        type: "tech_experience",
-                        techName: techObj.name,
-                        reasoning: `Extracted technology entity: [${techObj.name}] -> Queried experience matrix (${techObj.years} experience).`,
-                        answer: `⚡ <strong>${techObj.name} Experience:</strong><br>Ajith has <strong>${techObj.years} of hands-on experience working with ${techObj.name}</strong>. He specializes in <strong>${techObj.role}</strong> — ${techObj.details}${outroObj.text}`,
-                        qid: outroObj.qid
-                    };
-                } else {
-                    return {
-                        type: "tech_general",
-                        techName: techObj.name,
-                        reasoning: `Extracted technology entity: [${techObj.name}] -> Formulated skill summary (${techObj.years} experience).`,
-                        answer: `🛠️ <strong>${techObj.name} Expertise:</strong><br>Ajith brings <strong>${techObj.years} of experience in ${techObj.name}</strong> (${techObj.role}). ${techObj.details}${outroObj.text}`,
-                        qid: outroObj.qid
-                    };
-                }
-            }
-        }
-
-        // Handle "Do you know [Unknown Tech]?" inquiries
-        if (isDoYouKnowQuery) {
-            const unknownTech = words.find(w => !["do", "you", "know", "does", "ajith", "he", "is", "with", "any", "about", "have"].includes(w));
-            const techLabel = unknownTech ? unknownTech.charAt(0).toUpperCase() + unknownTech.slice(1) : "this technology";
-            return {
-                type: "unknown_tech",
-                techName: techLabel,
-                reasoning: `Evaluating unknown tech entity: [${techLabel}] against core stack -> Entity identified as secondary/adjacent tool.`,
-                answer: `ℹ️ <strong>Technology Capability:</strong><br>Ajith's core tech stack centers around <strong>JavaScript/TypeScript (7+ yrs), React (6+ yrs), Node.js (6+ yrs), Python (4+ yrs), AI/LLMs (3+ yrs), and AWS (4+ yrs)</strong>. While <strong>${techLabel}</strong> is not listed as his primary framework, as a senior software engineer with <strong>7+ years of experience</strong>, he adapts to new tools & frameworks rapidly!`,
-                qid: "ask_skills"
-            };
-        }
-
-        return null;
+    /* ---------------- rendering ---------------- */
+    function actionChipsHtml(actions) {
+        if (!actions || !actions.length) return '';
+        return `<div class="action-chips">${actions.map(a => `<a class="action-chip" href="${escapeHtml(a.href)}"${/^https?:/.test(a.href) ? ' target="_blank" rel="noopener"' : ''}${a.download ? ' download' : ''}><i class="${a.brand ? 'fab' : 'fas'} ${a.icon}"></i>${escapeHtml(a.label)}</a>`).join('')}</div>`;
     }
-
-    function generateReasoningSteps(query, matchedItem, isContextMatch, matchedScore, techIntent, corrections) {
-        const queryShort = query.length > 32 ? query.substring(0, 32) + '...' : query;
-        const steps = [];
-
-        // 0. Typo correction notice in thinking steps
-        if (corrections && corrections.length > 0) {
-            const corrText = corrections.map(c => `"${c.original}" ➔ "${c.corrected}"`).join(", ");
-            steps.push(`💡 Spell Checker active -> Corrected typos: [${corrText}]`);
-        }
-
-        // 1. NLP & Token Analysis
-        steps.push(`Tokenizing query: "${queryShort}" & evaluating domain parameters...`);
-
-        if (query.length > 20 || query.includes(" ")) {
-            steps.push(`Running intent classifier & embedding distance check...`);
-        }
-
-        // 2. Knowledge Retrieval & Vector Search
-        if (isContextMatch) {
-            steps.push(`Context memory active -> Evaluating conversational sentiment & thread state...`);
-        } else if (techIntent) {
-            steps.push(techIntent.reasoning);
-        } else if (matchedItem) {
-            steps.push(`Querying CV Knowledge Base -> Matched entity: [${matchedItem.id}] (Relevance Score: ${matchedScore || 3})`);
-        } else {
-            steps.push(`Querying Knowledge Base -> Query identified as out of domain parameters. Steering conversation back to Ajith's portfolio.`);
-        }
-
-        // 3. Response Generation
-        steps.push(`Synthesizing dynamic response with token streaming...`);
-
-        return steps;
+    function traceHtml(steps, meta, open) {
+        return `<details class="ai-trace"${open ? ' open' : ''}>
+            <summary class="ai-trace__summary"><i class="fas fa-chevron-right chev"></i><i class="fas fa-lightbulb"></i> ${escapeHtml(meta.title || 'Reasoning')}<span class="meta">${escapeHtml(meta.sub || '')}</span></summary>
+            <div class="ai-trace__steps">${steps.map(s => `<div class="ai-trace__step done"><i class="fas ${s.icon || 'fa-check'}"></i><span>${s.text}</span></div>`).join('')}</div>
+        </details>`;
     }
-
-    // Generative Token Streaming Effect
-    function streamBotAnswer(element, htmlContent, onComplete) {
-        element.classList.remove("d-none");
-        element.innerHTML = "";
-        
-        // Split text into tokens/words preserving HTML tags
-        const tokens = htmlContent.match(/<[^>]+>|[^<>\s]+|\s+/g) || [htmlContent];
-        let tokenIdx = 0;
-
-        const streamInterval = setInterval(() => {
-            if (tokenIdx < tokens.length) {
-                element.innerHTML += tokens[tokenIdx];
-                tokenIdx++;
-                chatBody.scrollTop = chatBody.scrollHeight;
-            } else {
-                clearInterval(streamInterval);
-                if (onComplete) onComplete();
-            }
-        }, 18);
+    function userMsgHtml(text) {
+        return `<div class="chat-msg user"><div class="chat-avatar"><i class="fas fa-user"></i></div><div class="chat-bubble-wrap"><div class="chat-bubble">${escapeHtml(text)}</div></div></div>`;
     }
-
-    function processAIResponse(rawQuery) {
-        const startTime = Date.now();
-        const msgId = "ai-msg-" + startTime;
-        
-        // Step A: Run Spelling Corrector
-        const { correctedQuery, corrections } = correctTyposInQuery(rawQuery);
-        const queryLower = correctedQuery.toLowerCase();
-        const words = queryLower.match(/\b\w+\b/g) || [];
-        
-        let matchedAnswer = null;
-        let nextPendingQuestion = null;
-        let matchedItem = null;
-        let matchedScore = 0;
-        let isContextMatch = false;
-
-        // 1. ALWAYS Check pending context thread FIRST!
-        if (pendingQuestion) {
-            const sentiment = analyzeSentiment(queryLower);
-            isContextMatch = true;
-
-            if (sentiment === 'positive') {
-                if (pendingQuestion === 'ask_contact') {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'contact').answer;
-                } else if (pendingQuestion === 'ask_experience') {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
-                } else if (pendingQuestion === 'ask_skills') {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'skills').answer;
-                } else if (pendingQuestion === 'ask_projects') {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
-                } else if (pendingQuestion === 'ask_projects_or_skills') {
-                    if (queryLower.includes('skill') || queryLower.includes('stack') || queryLower.includes('tech')) {
-                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'skills').answer;
-                    } else {
-                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
-                    }
-                } else if (pendingQuestion === 'ask_projects_or_experience') {
-                    if (queryLower.includes('exp')) {
-                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
-                    } else {
-                        matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
-                    }
-                }
-            } else if (sentiment === 'negative') {
-                matchedAnswer = "No problem! Let me know if there's anything else you'd like to ask about Ajith's portfolio.";
-            } else {
-                // Neutral: check if user typed a specific target keyword matching the pending question
-                if (pendingQuestion === 'ask_contact' && (queryLower.includes('contact') || queryLower.includes('email') || queryLower.includes('phone'))) {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'contact').answer;
-                } else if ((pendingQuestion === 'ask_projects_or_skills' || pendingQuestion === 'ask_projects_or_experience') && queryLower.includes('project')) {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'projects').answer;
-                } else if (pendingQuestion === 'ask_projects_or_skills' && (queryLower.includes('skill') || queryLower.includes('tech'))) {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'skills').answer;
-                } else if (pendingQuestion === 'ask_projects_or_experience' && (queryLower.includes('exp') || queryLower.includes('career'))) {
-                    matchedAnswer = aiKnowledgeBase.find(item => item.id === 'experience').answer;
-                }
-            }
-            
-            // Reset context memory after handling
-            pendingQuestion = null;
-        }
-
-        // 2. Check Technology / Years of Experience Intent
-        let techIntent = null;
-        if (!matchedAnswer) {
-            techIntent = parseTechOrExperienceIntent(queryLower);
-            if (techIntent) {
-                matchedAnswer = techIntent.answer;
-                nextPendingQuestion = techIntent.qid || null;
-            }
-        }
-
-        // 3. Knowledge base search
-        if (!matchedAnswer) {
-            let bestMatch = null;
-            let highestScore = 0;
-
-            for (const item of aiKnowledgeBase) {
-                let score = 0;
-                for (const kw of item.keywords) {
-                    if (queryLower.includes(kw)) {
-                        score += 3; 
-                    }
-                }
-                for (const word of words) {
-                    if (item.keywords.includes(word)) {
-                        score += 1;
-                    }
-                }
-
-                if (score > highestScore && score > 0) {
-                    highestScore = score;
-                    bestMatch = item;
-                }
-            }
-
-            if (bestMatch) {
-                matchedAnswer = bestMatch.answer;
-                nextPendingQuestion = bestMatch.qid || null;
-                matchedItem = bestMatch;
-                matchedScore = highestScore;
-            }
-        }
-
-        // 4. Fallback
-        if (!matchedAnswer) {
-            const fallback = fallbackAnswers[Math.floor(Math.random() * fallbackAnswers.length)];
-            matchedAnswer = fallback.text;
-            nextPendingQuestion = fallback.qid || null;
-        }
-        
-        pendingQuestion = nextPendingQuestion;
-
-        // Add auto-correction badge if typos were corrected
-        if (corrections && corrections.length > 0) {
-            const corrNotice = corrections.map(c => `<strong>"${c.original}"</strong> ➔ <strong>"${c.corrected}"</strong>`).join(", ");
-            matchedAnswer = `<small class="text-info d-block mb-2"><i class="fas fa-spell-check me-1"></i> <em>Auto-corrected spelling: ${corrNotice}</em></small>` + matchedAnswer;
-        }
-
-        const reasoningSteps = generateReasoningSteps(rawQuery, matchedItem, isContextMatch, matchedScore, techIntent, corrections);
-
-        // Render initial thinking state
-        const initialBotMsgHtml = `
-            <div class="chat-msg bot" id="${msgId}">
-                <div class="chat-avatar"><i class="fas fa-robot"></i></div>
+    function botShell(id) {
+        return `<div class="chat-msg bot" id="${id}">
+            <div class="chat-avatar"><i class="fas fa-brain"></i></div>
+            <div class="chat-bubble-wrap">
                 <div class="chat-bubble">
-                    <div class="ai-thought-box" id="${msgId}-thought-box">
-                        <div class="ai-thought-summary">
-                            <i class="fas fa-brain fa-spin text-info"></i> Thinking process...
-                            <div class="thinking-dots"><span></span><span></span><span></span></div>
-                        </div>
-                        <div class="ai-thought-content" id="${msgId}-thought-content"></div>
+                    <div class="ai-trace" id="${id}-trace">
+                        <div class="ai-trace__summary"><i class="fas fa-brain fa-spin"></i> Thinking<span class="thinking-dots"><span></span><span></span><span></span></span></div>
+                        <div class="ai-trace__steps" id="${id}-steps"></div>
                     </div>
-                    <div class="chat-answer-text d-none" id="${msgId}-answer"></div>
+                    <div class="chat-answer" id="${id}-answer"></div>
+                    <div class="chat-extra" id="${id}-extra"></div>
                 </div>
+                <div class="chat-actions" id="${id}-actions"></div>
             </div>
-        `;
-        
-        chatBody.insertAdjacentHTML("beforeend", initialBotMsgHtml);
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        const thoughtContentEl = document.getElementById(`${msgId}-thought-content`);
-        let stepIdx = 0;
-
-        function unfoldNextStep() {
-            if (stepIdx < reasoningSteps.length) {
-                const stepHtml = `
-                    <div class="ai-thought-step">
-                        <i class="fas fa-circle-notch fa-spin text-info"></i> ${reasoningSteps[stepIdx]}
-                    </div>
-                `;
-                if (thoughtContentEl) {
-                    thoughtContentEl.insertAdjacentHTML("beforeend", stepHtml);
-                    chatBody.scrollTop = chatBody.scrollHeight;
+        </div>`;
+    }
+    function actionsBarHtml(entry) {
+        return `<button type="button" data-act="copy" title="Copy answer"><i class="far fa-copy"></i> Copy</button>
+                <button type="button" data-act="regen" title="Regenerate"><i class="fas fa-redo"></i> Retry</button>
+                ${entry && entry.meta && entry.meta.engine && entry.meta.engine !== 'builtin' ? `<span class="mono" style="font-size:.66rem;color:var(--text-dim)">via ${escapeHtml(entry.meta.engine)}</span>` : ''}`;
+    }
+    function renderStatic(entry) {
+        if (entry.role === 'user') { el.body.insertAdjacentHTML('beforeend', userMsgHtml(entry.text)); return; }
+        if (entry.role === 'system') { el.body.insertAdjacentHTML('beforeend', `<div class="chat-msg system"><div class="chat-bubble">${entry.html}</div></div>`); return; }
+        const id = 'm' + Math.random().toString(36).slice(2, 8);
+        const meta = entry.meta || {};
+        const trace = meta.reasoning && meta.reasoning.length ? traceHtml(meta.reasoning, { title: meta.traceTitle || 'Reasoning', sub: meta.traceSub || '' }, false) : '';
+        el.body.insertAdjacentHTML('beforeend', `<div class="chat-msg bot" id="${id}"><div class="chat-avatar"><i class="fas fa-brain"></i></div><div class="chat-bubble-wrap"><div class="chat-bubble">${trace}<div class="chat-answer">${entry.html}</div><div class="chat-extra">${actionChipsHtml(meta.actions)}</div></div><div class="chat-actions">${actionsBarHtml(entry)}</div></div></div>`);
+        bindActions($(id), entry);
+        // animate bars
+        requestAnimationFrame(() => $(id).querySelectorAll('.bar > span').forEach(b => b.style.width = b.style.getPropertyValue('--w')));
+    }
+    function bindActions(msgEl, entry) {
+        if (!msgEl) return;
+        msgEl.querySelectorAll('[data-act]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.dataset.act === 'copy') {
+                    const txt = entry.text || msgEl.querySelector('.chat-answer').innerText;
+                    navigator.clipboard && navigator.clipboard.writeText(txt).then(() => { btn.innerHTML = '<i class="fas fa-check"></i> Copied'; setTimeout(() => btn.innerHTML = '<i class="far fa-copy"></i> Copy', 1500); });
+                } else if (btn.dataset.act === 'regen') {
+                    if (entry.prompt) send(entry.prompt, { regenerate: true });
                 }
-                stepIdx++;
-                const nextDelay = Math.floor(Math.random() * 200) + 120;
-                setTimeout(unfoldNextStep, nextDelay);
-            } else {
-                const finalDelay = Math.floor(Math.random() * 250) + 150;
-                setTimeout(() => {
-                    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-                    const thoughtBoxEl = document.getElementById(`${msgId}-thought-box`);
-                    const answerEl = document.getElementById(`${msgId}-answer`);
+            });
+        });
+    }
+    function setChips(list) {
+        el.chips.innerHTML = (list || []).map((t, i) => `<button type="button" class="prompt-chip" style="animation-delay:${i * 60}ms"><i class="fas fa-level-up-alt" style="transform:rotate(90deg);font-size:.7em;opacity:.7"></i>${escapeHtml(t)}</button>`).join('');
+        el.chips.querySelectorAll('.prompt-chip').forEach(b => b.addEventListener('click', () => send(b.textContent.trim())));
+    }
+    const DEFAULT_CHIPS = ['What is his AI experience?', 'Summarise his career', 'How many years of React?', 'Which projects used Node.js?', 'Is he open to remote work?', 'How do I contact him?'];
 
-                    if (thoughtBoxEl) {
-                        thoughtBoxEl.innerHTML = `
-                            <details class="ai-thought-details">
-                                <summary class="ai-thought-summary">
-                                    <i class="fas fa-chevron-right chevron"></i>
-                                    <i class="fas fa-lightbulb text-warning"></i>
-                                    Thought for ${elapsed}s
-                                </summary>
-                                <div class="ai-thought-content">
-                                    ${reasoningSteps.map(step => `
-                                        <div class="ai-thought-step">
-                                            <i class="fas fa-check text-success"></i> ${step}
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </details>
-                        `;
-                    }
+    /* ---------------- typewriter reveal over real DOM ---------------- */
+    function revealElement(container, html, signal) {
+        return new Promise(resolve => {
+            container.innerHTML = html;
+            const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+            const nodes = [];
+            let n; while ((n = walker.nextNode())) nodes.push({ node: n, text: n.nodeValue });
+            const total = nodes.reduce((a, b) => a + b.text.length, 0);
+            const cursor = document.createElement('span'); cursor.className = 'stream-cursor';
+            if (reduceMotion || total < 40 || document.hidden) { finish(); return; }
+            // hide element descendants until their first text arrives
+            container.querySelectorAll('*').forEach(e => { if (!e.classList.contains('bar')) e.classList.add('tw-hidden'); });
+            nodes.forEach(x => x.node.nodeValue = '');
+            let i = 0, pos = 0;
+            const cps = Math.min(1400, Math.max(320, total * 1.6)); // chars per second scales with length
+            let lastT = performance.now();
+            function tick(now) {
+                if ((signal && signal.aborted) || document.hidden) { finish(); return; } // no animation while aborted or tab hidden
+                let budget = Math.max(1, Math.round((now - lastT) / 1000 * cps)); lastT = now;
+                while (budget > 0 && i < nodes.length) {
+                    const cur = nodes[i];
+                    if (pos === 0) { let p = cur.node.parentElement; while (p && p !== container) { p.classList.remove('tw-hidden'); p = p.parentElement; } cur.node.parentElement.appendChild(cursor); }
+                    const take = Math.min(budget, cur.text.length - pos);
+                    pos += take; budget -= take;
+                    cur.node.nodeValue = cur.text.slice(0, pos);
+                    if (pos >= cur.text.length) { i++; pos = 0; }
+                }
+                scrollToBottom();
+                if (i < nodes.length) schedule(tick); else finish();
+            }
+            const schedule = (fn) => document.hidden ? setTimeout(() => fn(performance.now()), 16) : requestAnimationFrame(fn);
+            schedule(tick);
+            function finish() {
+                nodes.forEach(x => x.node.nodeValue = x.text);
+                container.querySelectorAll('.tw-hidden').forEach(e => e.classList.remove('tw-hidden'));
+                cursor.remove();
+                container.querySelectorAll('.bar > span').forEach(b => b.style.width = b.style.getPropertyValue('--w'));
+                scrollToBottom();
+                resolve();
+            }
+        });
+    }
 
-                    if (answerEl) {
-                        streamBotAnswer(answerEl, matchedAnswer);
-                    }
-                    
-                    chatBody.scrollTop = chatBody.scrollHeight;
-                }, finalDelay);
+    /* ---------------- LLM adapters ---------------- */
+    function buildMessages(userText) {
+        const sys = engine.buildSystemPrompt(userText);
+        const msgs = [{ role: 'system', content: sys }];
+        const turns = history.filter(h => h.role === 'user' || h.role === 'bot').slice(-6);
+        for (const t of turns) msgs.push({ role: t.role === 'user' ? 'user' : 'assistant', content: (t.text || '').slice(0, 1200) });
+        if (!turns.length || turns[turns.length - 1].text !== userText) msgs.push({ role: 'user', content: userText });
+        return msgs;
+    }
+    async function ensureWebLLM(onProgress) {
+        if (webllm.engine && webllm.model === settings.webllmModel) return webllm.engine;
+        if (!navigator.gpu) throw new Error('WebGPU is not available in this browser. Use a recent Chrome or Edge on desktop, or switch back to the built-in engine.');
+        webllm.loading = true;
+        try {
+            const mod = await import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2/+esm');
+            if (webllm.engine) { try { await webllm.engine.unload(); } catch (e) { /* ignore */ } }
+            const eng = await mod.CreateMLCEngine(settings.webllmModel, { initProgressCallback: (p) => onProgress && onProgress(p) });
+            webllm.engine = eng; webllm.model = settings.webllmModel;
+            return eng;
+        } finally { webllm.loading = false; }
+    }
+    async function* streamWebLLM(messages, signal) {
+        const eng = await ensureWebLLM(showProgress);
+        hideProgress();
+        const chunks = await eng.chat.completions.create({ messages, stream: true, temperature: 0.3, max_tokens: 420 });
+        for await (const c of chunks) {
+            if (signal.aborted) break;
+            const d = c.choices && c.choices[0] && c.choices[0].delta && c.choices[0].delta.content;
+            if (d) yield d;
+        }
+    }
+    async function* streamOllama(messages, signal) {
+        const base = (settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
+        const model = settings.ollamaModel || 'llama3.2';
+        const res = await fetch(base + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages, stream: true, options: { temperature: 0.3, num_predict: 420 } }), signal });
+        if (!res.ok) throw new Error(`Ollama responded ${res.status} — is the model "${model}" pulled?`);
+        const reader = res.body.getReader(), dec = new TextDecoder(); let buf = '';
+        while (true) {
+            const { done, value } = await reader.read(); if (done) break;
+            buf += dec.decode(value, { stream: true });
+            let idx;
+            while ((idx = buf.indexOf('\n')) >= 0) {
+                const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
+                if (!line) continue;
+                let j; try { j = JSON.parse(line); } catch (e) { continue; }
+                if (j.error) throw new Error(j.error);
+                if (j.message && j.message.content) yield j.message.content;
+                if (j.done) return;
+            }
+        }
+    }
+    async function fetchOllamaModels() {
+        const base = (settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
+        const res = await fetch(base + '/api/tags');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const j = await res.json();
+        return (j.models || []).map(m => m.name);
+    }
+    function showProgress(p) {
+        el.progress.hidden = false;
+        const pct = Math.round((p && typeof p.progress === 'number' ? p.progress : 0) * 100);
+        el.progressBar.style.width = pct + '%';
+        setStatus(`Loading ${settings.webllmModel.split('-')[0]} · ${pct}% ${p && p.text ? '· ' + p.text.replace(/\[.*?\]/g, '').slice(0, 60) : ''}`, 'busy');
+    }
+    function hideProgress() { el.progress.hidden = true; el.progressBar.style.width = '0%'; refreshStatus(); }
+
+    /* ---------------- status / engine UI ---------------- */
+    function setStatus(text, state) {
+        el.status.innerHTML = `<i class="dot"></i> ${escapeHtml(text)}`;
+        el.status.classList.toggle('is-busy', state === 'busy');
+        el.status.classList.toggle('is-error', state === 'error');
+    }
+    function refreshStatus() {
+        if (settings.engine === 'builtin') setStatus('Built-in · runs in your browser');
+        else if (settings.engine === 'webllm') setStatus(webllm.engine && webllm.model === settings.webllmModel ? `WebGPU · ${settings.webllmModel.split('-q4')[0]} loaded` : `WebGPU · ${settings.webllmModel.split('-q4')[0]} (loads on first message)`);
+        else setStatus(`Ollama · ${settings.ollamaModel || 'llama3.2'} @ ${(settings.ollamaUrl || 'localhost:11434').replace(/^https?:\/\//, '')}`);
+        el.engineBtn.innerHTML = `<span class="chip"></span><i class="fas ${ENGINE_META[settings.engine].icon}"></i><span class="lbl">${ENGINE_META[settings.engine].label}</span><i class="fas fa-chevron-down" style="font-size:.6rem;opacity:.7"></i>`;
+    }
+    function renderEngineMenu() {
+        const m = el.engineMenu;
+        m.innerHTML = Object.keys(ENGINE_META).map(k => `<button type="button" class="ai-engine__opt${settings.engine === k ? ' is-selected' : ''}" data-engine="${k}"><i class="fas ${ENGINE_META[k].icon}"></i><span><b>${ENGINE_META[k].title}${k === 'builtin' ? '<span class="tag">default</span>' : ''}${k === 'webllm' && !navigator.gpu ? '<span class="tag" style="background:rgba(239,68,68,.15);color:#ef4444">no WebGPU</span>' : ''}</b><small>${ENGINE_META[k].desc}</small></span></button>`).join('');
+        const cfg = document.createElement('div'); cfg.className = 'ai-engine__cfg';
+        if (settings.engine === 'webllm') {
+            cfg.innerHTML = `<label>Model</label><select id="ai-webllm-model">${WEBLLM_MODELS.map(x => `<option value="${x.id}"${x.id === settings.webllmModel ? ' selected' : ''}>${x.label}</option>`).join('')}</select>
+                <div class="hint">Downloads once to your browser cache, then runs offline on your GPU. Answers are grounded in the same CV retrieval the built-in engine uses (RAG).</div>`;
+            m.appendChild(cfg);
+            cfg.querySelector('#ai-webllm-model').addEventListener('change', (e) => { settings.webllmModel = e.target.value; saveJSON(SETTINGS_KEY, settings); refreshStatus(); });
+        } else if (settings.engine === 'ollama') {
+            cfg.innerHTML = `<label>Server URL</label><input id="ai-ollama-url" value="${escapeHtml(settings.ollamaUrl || 'http://localhost:11434')}" spellcheck="false">
+                <label>Model <button type="button" id="ai-ollama-refresh" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.68rem">↻ detect</button></label>
+                <input id="ai-ollama-model" list="ai-ollama-models" value="${escapeHtml(settings.ollamaModel || 'llama3.2')}" spellcheck="false"><datalist id="ai-ollama-models"></datalist>
+                <div class="hint" id="ai-ollama-hint">Start Ollama with this site allowed as an origin:<br><code>OLLAMA_ORIGINS="${escapeHtml(location.origin)}" ollama serve</code></div>`;
+            m.appendChild(cfg);
+            cfg.querySelector('#ai-ollama-url').addEventListener('change', (e) => { settings.ollamaUrl = e.target.value.trim(); saveJSON(SETTINGS_KEY, settings); refreshStatus(); });
+            cfg.querySelector('#ai-ollama-model').addEventListener('change', (e) => { settings.ollamaModel = e.target.value.trim(); saveJSON(SETTINGS_KEY, settings); refreshStatus(); });
+            cfg.querySelector('#ai-ollama-refresh').addEventListener('click', async () => {
+                const hint = cfg.querySelector('#ai-ollama-hint');
+                try { const models = await fetchOllamaModels(); cfg.querySelector('#ai-ollama-models').innerHTML = models.map(x => `<option value="${escapeHtml(x)}">`).join(''); hint.innerHTML = models.length ? `✅ Connected · ${models.length} model(s): ${models.slice(0, 4).map(escapeHtml).join(', ')}${models.length > 4 ? '…' : ''}` : '⚠️ Connected, but no models pulled. Try <code>ollama pull llama3.2</code>'; if (models.length && !models.includes(settings.ollamaModel)) { settings.ollamaModel = models[0]; cfg.querySelector('#ai-ollama-model').value = models[0]; saveJSON(SETTINGS_KEY, settings); refreshStatus(); } }
+                catch (e) { hint.innerHTML = `❌ Can't reach Ollama (${escapeHtml(e.message)}). Make sure it's running with:<br><code>OLLAMA_ORIGINS="${escapeHtml(location.origin)}" ollama serve</code>`; }
+            });
+        }
+        m.querySelectorAll('[data-engine]').forEach(b => b.addEventListener('click', () => {
+            settings.engine = b.dataset.engine; saveJSON(SETTINGS_KEY, settings);
+            renderEngineMenu(); refreshStatus();
+            addSystemNote(`Engine switched to <b>${ENGINE_META[settings.engine].title}</b>${settings.engine === 'webllm' ? ' — the model will download on your first message' : ''}.`);
+        }));
+    }
+    function addSystemNote(html) {
+        el.body.insertAdjacentHTML('beforeend', `<div class="chat-msg system"><div class="chat-bubble">${html}</div></div>`);
+        scrollToBottom(true);
+    }
+
+    /* ---------------- main send flow ---------------- */
+    async function send(rawText, opts) {
+        opts = opts || {};
+        const text = String(rawText || '').trim();
+        if (!text || busy) return;
+        if (/^\/(clear|reset)$/i.test(text)) { clearChat(); return; }
+        if (/^\/engine\b/i.test(text)) { el.engine.classList.add('is-open'); el.input.value = ''; return; }
+
+        busy = true; lastUserText = text;
+        try { await sendInner(text, opts); }
+        catch (err) { console.error('[AjithAI] send failed', err); addSystemNote('Something went wrong while answering — please try again.'); }
+        finally { setThinking(false); busy = false; aborter = null; }
+    }
+    async function sendInner(text, opts) {
+        el.input.value = ''; autoGrow();
+        if (!opts.regenerate) { el.body.insertAdjacentHTML('beforeend', userMsgHtml(text)); history.push({ role: 'user', text }); }
+        el.chips.innerHTML = '';
+        setThinking(true);
+        scrollToBottom(true);
+        aborter = new AbortController();
+        const signal = aborter.signal;
+        const t0 = performance.now();
+
+        // 1. local reasoning (always — provides trace, retrieval, fallback answer)
+        const res = engine.ask(text);
+        const id = 'msg-' + Date.now();
+        el.body.insertAdjacentHTML('beforeend', botShell(id));
+        const stepsEl = $(id + '-steps'), traceEl = $(id + '-trace'), answerEl = $(id + '-answer'), extraEl = $(id + '-extra'), actionsEl = $(id + '-actions');
+        scrollToBottom(true);
+
+        const useLLM = settings.engine !== 'builtin';
+        const steps = res.reasoning.slice();
+        if (useLLM) steps.push({ icon: 'fa-magic', text: `Handing retrieved context to ${settings.engine === 'webllm' ? settings.webllmModel.split('-q4')[0] + ' (WebGPU)' : (settings.ollamaModel || 'llama3.2') + ' (Ollama)'} as RAG context…` });
+
+        // 2. unfold trace
+        for (let i = 0; i < steps.length; i++) {
+            if (signal.aborted) break;
+            stepsEl.insertAdjacentHTML('beforeend', `<div class="ai-trace__step"><i class="fas fa-circle-notch fa-spin"></i><span>${steps[i].text}</span></div>`);
+            scrollToBottom();
+            await sleep(useLLM && i === steps.length - 1 ? 60 : 110 + Math.random() * 150);
+        }
+        await sleep(120);
+
+        let finalHtml = res.html, finalText = res.text, engineUsed = 'builtin', llmError = null;
+
+        // 3. LLM generation (streamed) or built-in reveal
+        if (useLLM && !signal.aborted) {
+            try {
+                const messages = buildMessages(text);
+                const stream = settings.engine === 'webllm' ? streamWebLLM(messages, signal) : streamOllama(messages, signal);
+                let acc = '', raf = null;
+                answerEl.innerHTML = '<span class="stream-cursor"></span>';
+                for await (const chunk of stream) {
+                    if (signal.aborted) break;
+                    acc += chunk;
+                    if (!raf) raf = requestAnimationFrame(() => { raf = null; answerEl.innerHTML = AjithAI.mdToHtml(acc) + '<span class="stream-cursor"></span>'; scrollToBottom(); });
+                }
+                if (raf) cancelAnimationFrame(raf);
+                if (acc.trim()) { finalText = acc.trim(); finalHtml = AjithAI.mdToHtml(finalText); engineUsed = settings.engine; }
+                answerEl.innerHTML = finalHtml;
+                answerEl.querySelectorAll('.bar > span').forEach(b => b.style.width = b.style.getPropertyValue('--w'));
+            } catch (e) {
+                llmError = e && e.message ? e.message : String(e);
+                hideProgress();
             }
         }
 
-        setTimeout(unfoldNextStep, Math.floor(Math.random() * 150) + 100);
-    }
-}
+        // 4. finalise trace
+        const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+        const traceTitle = `Reasoned for ${elapsed}s`;
+        const traceSub = `${res.intent.replace(/_/g, ' ')} · ${Math.round(res.confidence * 100)}%${engineUsed !== 'builtin' ? ' · ' + engineUsed : ''}`;
+        if (llmError) steps.push({ icon: 'fa-exclamation-triangle', text: `LLM engine failed (${escapeHtml(llmError)}) — answering with the built-in engine instead.` });
+        traceEl.outerHTML = traceHtml(steps, { title: traceTitle, sub: traceSub }, false);
 
-function escapeHtml(text) {
-    const div = document.createElement("div");
-    div.innerText = text;
-    return div.innerHTML;
-}
+        // 5. reveal built-in answer (typewriter) when no LLM text was produced
+        if (engineUsed === 'builtin' && !signal.aborted) {
+            const notice = llmError ? `<div class="notice"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(llmError).slice(0, 140)}</div>` : '';
+            await revealElement(answerEl, notice + res.html, signal);
+        } else if (signal.aborted && !answerEl.textContent.trim()) {
+            answerEl.innerHTML = res.html;
+        }
+        answerEl.querySelector('.stream-cursor') && answerEl.querySelector('.stream-cursor').remove();
+
+        // 6. actions, follow-ups, persist
+        extraEl.innerHTML = actionChipsHtml(res.actions);
+        const entry = { role: 'bot', text: finalText, html: answerEl.innerHTML, prompt: text, meta: { reasoning: steps, traceTitle, traceSub, actions: res.actions, engine: engineUsed, intent: res.intent } };
+        actionsEl.innerHTML = actionsBarHtml(entry);
+        bindActions($(id), entry);
+        history.push(entry);
+        if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+        saveJSON(STORE_KEY, history);
+        setChips(res.followups && res.followups.length ? res.followups : DEFAULT_CHIPS);
+        scrollToBottom(true);
+        if (window.AjithVisuals) window.AjithVisuals.burst(6);
+    }
+
+    function clearChat() {
+        history = []; saveJSON(STORE_KEY, history); engine.reset();
+        el.body.innerHTML = '';
+        welcome();
+        setChips(DEFAULT_CHIPS);
+        el.input.focus();
+    }
+    function welcome() {
+        const yrs = AjithAI.totalYearsLabel();
+        const html = AjithAI.mdToHtml(`👋 Hi, I'm **Ajith's AI assistant**. I run entirely in your browser — no server, no API keys, nothing you type leaves this page.\n\nAsk me about his **${yrs}** of full-stack work, his **AI/LLM projects**, specific technologies, or how to **get in touch**. Try a suggestion below, or type \`/help\`.`);
+        const entry = { role: 'bot', text: 'Welcome', html, meta: { actions: [] } };
+        renderStatic(entry);
+    }
+
+    /* ---------------- expand mode ---------------- */
+    function setExpanded(on) {
+        // Reparent to <body> so the fixed panel escapes the hero's stacking context
+        if (on && el.panel.parentElement !== document.body) document.body.appendChild(el.panel);
+        else if (!on && el.panel.parentElement === document.body) el.placeholder.insertAdjacentElement('afterend', el.panel);
+        el.panel.classList.toggle('is-expanded', on);
+        el.backdrop.classList.toggle('is-visible', on);
+        el.placeholder.classList.toggle('is-active', on);
+        document.body.classList.toggle('ai-expanded', on);
+        el.expand.innerHTML = on ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+        el.expand.title = on ? 'Exit full screen (Esc)' : 'Full screen';
+        if (on) setTimeout(() => el.input.focus(), 50);
+        scrollToBottom(true);
+    }
+    function panelInView() { const r = el.panel.getBoundingClientRect(); return r.top < window.innerHeight * 0.7 && r.bottom > window.innerHeight * 0.3; }
+
+    /* ---------------- voice ---------------- */
+    function initVoice() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) { el.mic.hidden = true; return; }
+        let rec = null, listening = false;
+        el.mic.addEventListener('click', () => {
+            if (listening) { rec && rec.stop(); return; }
+            rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true;
+            rec.onresult = (e) => { let t = ''; for (const r of e.results) t += r[0].transcript; el.input.value = t; autoGrow(); if (e.results[e.results.length - 1].isFinal) { rec.stop(); setTimeout(() => send(t), 200); } };
+            rec.onend = () => { listening = false; el.mic.classList.remove('is-listening'); };
+            rec.onerror = () => { listening = false; el.mic.classList.remove('is-listening'); };
+            rec.start(); listening = true; el.mic.classList.add('is-listening');
+        });
+    }
+    function autoGrow() { el.input.style.height = 'auto'; el.input.style.height = Math.min(120, el.input.scrollHeight) + 'px'; }
+
+    /* ---------------- init ---------------- */
+    function init() {
+        el = {
+            panel: $('ai-assistant'), body: $('ai-chat-body'), input: $('ai-chat-input'), send: $('ai-send-btn'), form: $('ai-form'),
+            chips: $('ai-chips'), status: $('ai-status'), clear: $('ai-clear-btn'), expand: $('ai-expand-btn'), info: $('ai-info'), infoBtn: $('ai-info-btn'),
+            engine: $('ai-engine'), engineBtn: $('ai-engine-btn'), engineMenu: $('ai-engine-menu'), progress: $('ai-progress'), progressBar: $('ai-progress-bar'),
+            mic: $('ai-mic-btn'), backdrop: $('ai-backdrop'), placeholder: $('ai-panel-placeholder'), fab: $('floating-ai-btn')
+        };
+        if (!el.panel || !el.body || !window.AjithAI) return;
+        engine = AjithAI.createEngine();
+        settings = Object.assign({ engine: 'builtin', ollamaUrl: 'http://localhost:11434', ollamaModel: 'llama3.2', webllmModel: WEBLLM_MODELS[0].id }, loadJSON(SETTINGS_KEY, {}));
+        try { const qe = new URLSearchParams(location.search).get('engine'); if (qe && ENGINE_META[qe]) settings.engine = qe; } catch (e) { /* ignore */ }
+        if (!ENGINE_META[settings.engine]) settings.engine = 'builtin';
+        history = loadJSON(STORE_KEY, []);
+        if (!Array.isArray(history)) history = [];
+
+        // restore or welcome
+        if (history.length) { history.forEach(renderStatic); el.body.insertAdjacentHTML('beforeend', `<div class="chat-msg system"><div class="chat-bubble">Conversation restored · <a href="#" id="ai-restore-clear">start fresh</a></div></div>`); $('ai-restore-clear').addEventListener('click', (e) => { e.preventDefault(); clearChat(); }); }
+        else welcome();
+        setChips(DEFAULT_CHIPS);
+        renderEngineMenu(); refreshStatus();
+        requestAnimationFrame(() => scrollToBottom(true));
+
+        // events
+        el.form.addEventListener('submit', (e) => { e.preventDefault(); if (busy) { aborter && aborter.abort(); return; } send(el.input.value); });
+        el.input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el.form.requestSubmit ? el.form.requestSubmit() : el.form.dispatchEvent(new Event('submit')); } if (e.key === 'Escape' && el.panel.classList.contains('is-expanded')) setExpanded(false); });
+        el.input.addEventListener('input', autoGrow);
+        el.clear.addEventListener('click', clearChat);
+        el.expand.addEventListener('click', () => setExpanded(!el.panel.classList.contains('is-expanded')));
+        el.backdrop.addEventListener('click', () => setExpanded(false));
+        el.infoBtn.addEventListener('click', () => { el.info.hidden = !el.info.hidden; el.infoBtn.classList.toggle('is-active', !el.info.hidden); });
+        el.engineBtn.addEventListener('click', (e) => { e.stopPropagation(); el.engine.classList.toggle('is-open'); });
+        document.addEventListener('click', (e) => { if (!el.engine.contains(e.target)) el.engine.classList.remove('is-open'); });
+        document.addEventListener('keydown', (e) => {
+            const tag = (e.target.tagName || '').toLowerCase();
+            if (e.key === '/' && tag !== 'input' && tag !== 'textarea' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); if (!panelInView()) el.panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.input.focus(); }
+            if (e.key === 'Escape' && el.panel.classList.contains('is-expanded')) setExpanded(false);
+        });
+        if (el.fab) el.fab.addEventListener('click', (e) => { e.preventDefault(); if (panelInView()) { el.input.focus(); } else { setExpanded(true); } });
+        document.querySelectorAll('[data-ai-prompt]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); el.panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => send(b.dataset.aiPrompt), 400); }));
+        initVoice();
+
+        // deep link: ?ask=your+question sends a prompt on load (shareable)
+        try { const q = new URLSearchParams(location.search).get('ask'); if (q) setTimeout(() => send(q), 600); } catch (e) { /* ignore */ }
+
+        // public hooks
+        window.sendAIPrompt = (t) => { el.panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => send(t), 300); };
+        window.clearAIChat = clearChat;
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+})();

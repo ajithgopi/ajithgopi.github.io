@@ -14,9 +14,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ajith Gopi | Full Stack & AI Engineer | Portfolio</title>
-    
-    <meta name="description" content="Ajith Gopi is a Full Stack & AI Engineer specializing in LLMs, RAG pipelines, modern web apps, mobile apps, and machine learning systems.">
-    
+    <meta name="description" content="Ajith Gopi is a Full Stack & AI Engineer specialising in LLMs, RAG pipelines, modern web platforms, mobile apps and machine-learning systems. Ask his in-browser AI assistant anything.">
+    <meta name="theme-color" content="#070a12" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f5f7fb" media="(prefers-color-scheme: light)">
+
     <link rel="shortcut icon" href="/favicon.png" type="image/png">
     <link rel="icon" href="/favicon.png" type="image/png">
 
@@ -24,46 +25,63 @@
     <meta property="og:title" content="Ajith Gopi | Full Stack & AI Engineer | Portfolio" />
     <meta property="og:url" content="https://agopi.in/" />
     <meta property="og:image" content="https://agopi.in/img/me.jpg" />
-    <meta property="og:description" content="Full Stack & AI Engineer crafting intelligent LLM systems, modern web platforms, and high-performance applications." />
+    <meta property="og:description" content="Full Stack & AI Engineer crafting intelligent LLM systems, modern web platforms and high-performance applications. Chat with his in-browser AI assistant." />
     <meta name="twitter:site" content="@ahgopi">
-    <meta name="keywords" content="Ajith Gopi, AI Engineer, Full Stack Developer, LLM, RAG, React, Next.js, Python, Swift, Machine Learning, GitHub"/>
-
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="keywords" content="Ajith Gopi, AI Engineer, Full Stack Developer, LLM, RAG, React, Next.js, Node.js, Python, Swift, Machine Learning, Dubai"/>
     <link rel="canonical" href="https://agopi.in/" />
 
-    <!-- CSS Dependencies -->
+    <!-- CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/fontawesome.min.css"/>
-    <link rel="stylesheet" href="css/style.css?v=20260802">
+    <link rel="stylesheet" href="css/style.css?v=20260911">
+    <script>
+        // Apply saved theme before first paint to avoid a flash
+        (function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('portfolio-theme');if(!t){var h=new Date().getHours();t=(h>=6&&h<18)?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+    </script>
 </head>
 
 <body>
-    <div class="bg-mesh-pattern"></div>
+    <div class="scroll-progress" id="scroll-progress"></div>
+    <div class="aurora" aria-hidden="true">
+        <span class="aurora__blob b1"></span>
+        <span class="aurora__blob b2"></span>
+        <span class="aurora__blob b3"></span>
+        <span class="aurora__blob b4"></span>
+        <span class="aurora__grid"></span>
+        <span class="aurora__noise"></span>
+    </div>
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-custom sticky-top" id="site-nav">
         <div class="container">
-            <a class="navbar-brand" href="#">
-                <span class="brand-dot"></span> Ajith Gopi
+            <a class="navbar-brand" href="#about">
+                <span class="brand-mark">AG</span> Ajith Gopi
             </a>
-            <button class="navbar-toggler text-main border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <i class="fas fa-bars"></i>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center gap-1">
+                <ul class="navbar-nav ms-auto align-items-lg-center gap-1">
                     <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#ai-hub"><i class="fas fa-sparkles text-success me-1"></i> AI Dev</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#ai-hub">AI Engineering</a></li>
                     <li class="nav-item"><a class="nav-link" href="#skills">Skills</a></li>
                     <li class="nav-item"><a class="nav-link" href="#projects">Projects</a></li>
                     <li class="nav-item"><a class="nav-link" href="#experience">Experience</a></li>
                     <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
                     <li class="nav-item ms-lg-2">
-                        <button class="btn btn-sm btn-outline-custom" data-bs-toggle="modal" data-bs-target="#recruiterModal">
-                            <i class="fas fa-user-check me-1"></i> Recruiter View
+                        <button class="btn-ghost btn-sm-custom" type="button" data-bs-toggle="modal" data-bs-target="#recruiterModal">
+                            <i class="fas fa-user-check"></i> Recruiter view
                         </button>
                     </li>
                     <li class="nav-item ms-lg-1">
-                        <button class="btn btn-sm btn-outline-custom theme-toggle-btn" id="theme-toggle" title="Switch to Dark Mode">
-                            <i class="fas fa-moon text-primary" id="theme-icon"></i>
+                        <a class="btn-ghost btn-sm-custom" href="Ajith - CV.pdf" target="_blank" rel="noopener" title="Download CV (PDF)">
+                            <i class="fas fa-file-download"></i> CV
+                        </a>
+                    </li>
+                    <li class="nav-item ms-lg-1">
+                        <button class="btn-ghost icon-btn theme-toggle-btn" type="button" id="theme-toggle" title="Switch theme" aria-label="Toggle dark mode">
+                            <i class="fas fa-moon" id="theme-icon"></i>
                         </button>
                     </li>
                 </ul>
@@ -71,713 +89,440 @@
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <section class="hero-section" id="about">
-        <!-- Hero Section Neural Network Background -->
-        <canvas id="neural-network-canvas" class="hero-bg-canvas"></canvas>
-        <div class="container">
-            <div class="row align-items-center">
-                <div class="col-lg-8 offset-lg-2 text-center">
-                    <div class="badge-ai">
-                        <i class="fas fa-brain"></i> AI-POWERED FULL STACK ENGINEER
-                    </div>
-                    <h1 class="hero-title">
-                        Building <span class="ai-gradient-text">Intelligent Systems</span> & Modern Software
+    <!-- Hero: intro + embedded AI assistant -->
+    <header class="hero" id="about">
+        <canvas id="hero-canvas" class="hero__canvas" aria-hidden="true"></canvas>
+        <div class="container hero__inner">
+            <div class="row align-items-center g-4 g-lg-5">
+                <div class="col-lg-6 hero__copy">
+                    <div class="badge-ai"><span class="live-dot"></span> AI-powered full-stack engineer</div>
+                    <h1 class="hero__title">
+                        <span class="word">Building</span>
+                        <span class="word grad-text-animated">intelligent</span>
+                        <span class="word grad-text-animated">systems</span>
+                        <span class="word">&amp;</span>
+                        <span class="word">modern</span>
+                        <span class="word">software.</span>
                     </h1>
-                    <div class="typing-container">
-                        I build <span id="typing-text" class="gradient-text"></span><span class="typing-cursor"></span>
-                    </div>
-                    <p class="hero-bio mx-auto">
-                        Experienced Software Engineer combining deep <strong>Full-Stack Architecture</strong> with cutting-edge <strong>AI & LLM Workflows</strong>. Specializing in high-performance web platforms, intelligent data pipelines, native mobile apps, and autonomous agent integrations.
+                    <div class="typing"><span class="typing__prompt">&gt;_</span> ajith.role = "<span id="typing-text" class="grad-text"></span><span class="typing__cursor"></span>"</div>
+                    <p class="hero__bio">
+                        Software engineer combining deep <strong>full-stack architecture</strong> with production <strong>AI &amp; LLM workflows</strong> — high-performance web platforms, intelligent data pipelines, native mobile apps and autonomous-agent integrations. Currently building corporate-banking systems at Emirates NBD, Dubai.
                     </p>
-
-                    <!-- Hero Social Links -->
-                    <div class="d-flex justify-content-center gap-3 mb-5">
-                        <a href="https://github.com/ajithgopi" target="_blank" class="social-icon-btn" title="GitHub Profile"><i class="fab fa-github"></i></a>
-                        <a href="https://www.linkedin.com/in/ahgopi/" target="_blank" class="social-icon-btn" title="LinkedIn Profile"><i class="fab fa-linkedin"></i></a>
-                        <a href="https://stackoverflow.com/users/5321660/ajith-gopi" target="_blank" class="social-icon-btn" title="StackOverflow"><i class="fab fa-stack-overflow"></i></a>
-                        <a href="mailto:ajithgopikklm@gmail.com" class="social-icon-btn" title="Email Me"><i class="fas fa-envelope"></i></a>
-                        <a href="https://www.youtube.com/distrostudios" target="_blank" class="social-icon-btn" title="YouTube Channel"><i class="fab fa-youtube"></i></a>
-                        <a href="https://instagram.com/ajith_gp" target="_blank" class="social-icon-btn" title="Instagram"><i class="fab fa-instagram"></i></a>
+                    <div class="hero__cta">
+                        <a href="#projects" class="btn-glow magnetic"><i class="fas fa-laptop-code"></i> View featured work</a>
+                        <button type="button" class="btn-ghost magnetic" data-ai-prompt="Give me a 30-second summary of Ajith"><i class="fas fa-magic"></i> Ask the AI for a summary</button>
                     </div>
-
-                    <!-- Stats Counter Row -->
-                    <div class="row g-3 justify-content-center mb-4">
-                        <div class="col-6 col-md-3">
-                            <div class="stat-box">
-                                <div class="stat-number counter-val" data-target="8">0</div>
-                                <div class="stat-label">Years Experience</div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <div class="stat-box">
-                                <div class="stat-number counter-val" data-target="30">0</div>
-                                <div class="stat-label">Projects Built</div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <div class="stat-box">
-                                <div class="stat-number counter-val" data-target="15">0</div>
-                                <div class="stat-label">AI Solutions</div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <div class="stat-box">
-                                <div class="stat-number counter-val" data-target="25">0</div>
-                                <div class="stat-label">Tech Stack</div>
-                            </div>
-                        </div>
+                    <div class="hero__social">
+                        <a href="https://github.com/ajithgopi" target="_blank" rel="noopener" class="social-icon-btn" title="GitHub"><i class="fab fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/ahgopi/" target="_blank" rel="noopener" class="social-icon-btn" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="https://stackoverflow.com/users/5321660/ajith-gopi" target="_blank" rel="noopener" class="social-icon-btn" title="Stack Overflow"><i class="fab fa-stack-overflow"></i></a>
+                        <a href="mailto:ajithgopikklm@gmail.com" class="social-icon-btn" title="Email"><i class="fas fa-envelope"></i></a>
+                        <a href="https://www.youtube.com/distrostudios" target="_blank" rel="noopener" class="social-icon-btn" title="YouTube"><i class="fab fa-youtube"></i></a>
+                        <a href="https://instagram.com/ajith_gp" target="_blank" rel="noopener" class="social-icon-btn" title="Instagram"><i class="fab fa-instagram"></i></a>
                     </div>
+                </div>
 
-                    <!-- Call To Action -->
-                    <div class="d-flex flex-wrap justify-content-center gap-3">
-                        <a href="#ai-assistant" class="btn-ai-custom">
-                            <i class="fas fa-robot"></i> Ask AI Assistant
-                        </a>
-                        <a href="#projects" class="btn-primary-custom">
-                            <i class="fas fa-laptop-code"></i> View Featured Work
-                        </a>
-                    </div>
+                <div class="col-lg-6 hero__panel-col">
+                    <div class="ai-panel-placeholder" id="ai-panel-placeholder"></div>
+                    <section class="ai-panel" id="ai-assistant" aria-label="Ajith's AI assistant">
+                        <header class="ai-panel__header">
+                            <div class="ai-orb" aria-hidden="true"></div>
+                            <div class="ai-panel__title">
+                                <strong>Ajith's AI Assistant</strong>
+                                <span class="ai-status" id="ai-status"><i class="dot"></i> Built-in · runs in your browser</span>
+                            </div>
+                            <div class="ai-panel__tools">
+                                <div class="ai-engine" id="ai-engine">
+                                    <button type="button" class="ai-engine__btn" id="ai-engine-btn" title="Choose AI engine"><span class="chip"></span><i class="fas fa-microchip"></i><span class="lbl">Built-in</span></button>
+                                    <div class="ai-engine__menu" id="ai-engine-menu" role="menu"></div>
+                                </div>
+                                <button type="button" class="ai-tool-btn" id="ai-info-btn" title="How this assistant works"><i class="fas fa-info-circle"></i></button>
+                                <button type="button" class="ai-tool-btn danger" id="ai-clear-btn" title="Clear conversation"><i class="fas fa-trash-alt"></i></button>
+                                <button type="button" class="ai-tool-btn" id="ai-expand-btn" title="Full screen"><i class="fas fa-expand"></i></button>
+                            </div>
+                        </header>
+                        <div class="ai-progress" id="ai-progress" hidden><div class="ai-progress__bar" id="ai-progress-bar"></div></div>
+                        <div class="ai-panel__info" id="ai-info" hidden>
+                            <b>How it works.</b> This assistant is a retrieval-first reasoning engine that runs entirely in your browser: spell-correction → intent classification → entity extraction → BM25 retrieval over Ajith's CV → answer composition, with conversational memory for follow-ups. Nothing is sent to a server. Optionally switch to a real LLM running on your GPU (WebGPU) or a local Ollama — both are grounded with the same retrieved context (RAG).
+                            <div class="pills"><span class="pill">no API keys</span><span class="pill">no tracking</span><span class="pill">BM25</span><span class="pill">intent + NER</span><span class="pill">WebGPU optional</span><span class="pill">Ollama optional</span></div>
+                        </div>
+                        <div class="ai-panel__body" id="ai-chat-body" role="log" aria-live="polite"></div>
+                        <div class="ai-panel__chips" id="ai-chips"></div>
+                        <form class="ai-panel__input" id="ai-form" autocomplete="off">
+                            <textarea id="ai-chat-input" rows="1" placeholder="Ask about experience, skills, projects… (try /help)" aria-label="Message the assistant"></textarea>
+                            <button type="button" class="ai-tool-btn ai-mic-btn" id="ai-mic-btn" title="Voice input"><i class="fas fa-microphone"></i></button>
+                            <button type="submit" class="ai-send-btn" id="ai-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
+                        </form>
+                        <div class="ai-panel__foot">
+                            <span><kbd>Enter</kbd> send · <kbd>Shift</kbd>+<kbd>Enter</kbd> newline · <kbd>/</kbd> focus</span>
+                            <span>runs locally · conversation saved on this device</span>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="row g-3 hero__stats">
+                <div class="col-6 col-md-3">
+                    <div class="stat-box"><div class="stat-icon"><i class="fas fa-briefcase"></i></div><div><div class="stat-number counter-val" data-stat="years" data-target="7">0</div><div class="stat-label">Years experience</div></div></div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box"><div class="stat-icon"><i class="fas fa-cubes"></i></div><div><div class="stat-number counter-val" data-target="30">0</div><div class="stat-label">Projects shipped</div></div></div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box"><div class="stat-icon"><i class="fas fa-brain"></i></div><div><div class="stat-number counter-val" data-target="15">0</div><div class="stat-label">AI solutions</div></div></div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box"><div class="stat-icon"><i class="fas fa-layer-group"></i></div><div><div class="stat-number counter-val" data-target="30">0</div><div class="stat-label">Technologies</div></div></div>
                 </div>
             </div>
         </div>
-    </section>
+    </header>
 
-    <!-- AI Engineering Spotlight Section -->
-    <section class="py-5" id="ai-hub">
+    <!-- Tech marquee -->
+    <div class="marquee" aria-hidden="true">
+        <div class="marquee__track">
+            <span class="marquee__item"><i class="fab fa-react"></i> React / Next.js</span>
+            <span class="marquee__item"><i class="fab fa-node-js"></i> Node.js</span>
+            <span class="marquee__item"><i class="fas fa-brain"></i> LLMs &amp; RAG</span>
+            <span class="marquee__item"><i class="fab fa-python"></i> Python</span>
+            <span class="marquee__item"><i class="fas fa-database"></i> MongoDB</span>
+            <span class="marquee__item"><i class="fab fa-aws"></i> AWS</span>
+            <span class="marquee__item"><i class="fab fa-docker"></i> Docker / K8s</span>
+            <span class="marquee__item"><i class="fas fa-code"></i> TypeScript</span>
+            <span class="marquee__item"><i class="fab fa-swift"></i> Swift / iOS</span>
+            <span class="marquee__item"><i class="fas fa-server"></i> PostgreSQL</span>
+            <span class="marquee__item"><i class="fas fa-robot"></i> Claude · OpenAI · Ollama</span>
+            <span class="marquee__item"><i class="fab fa-laravel"></i> Laravel</span>
+            <span class="marquee__item"><i class="fas fa-project-diagram"></i> Microservices</span>
+            <span class="marquee__item"><i class="fab fa-angular"></i> Angular</span>
+            <span class="marquee__item"><i class="fas fa-bolt"></i> Redis</span>
+        </div>
+    </div>
+
+    <!-- AI Engineering -->
+    <section class="section" id="ai-hub">
         <div class="container">
-            <div class="text-center mb-5">
-                <span class="section-tag"><i class="fas fa-wand-magic-sparkles"></i> AI INTEGRATION & ENGINEERING</span>
-                <h2>Accelerating Software with <span class="ai-gradient-text">Artificial Intelligence</span></h2>
-                <p class="text-muted max-w-600 mx-auto">From custom RAG pipelines to autonomous LLM agents and predictive machine learning models.</p>
+            <div class="section-head text-center">
+                <span class="section-tag centered"><i class="fas fa-magic"></i> AI integration &amp; engineering</span>
+                <h2 class="section-title">Accelerating software with <span class="grad-text-ai">artificial intelligence</span></h2>
+                <p class="section-sub">From custom RAG pipelines and autonomous LLM agents to predictive machine-learning models — shipped inside real products, not slide decks.</p>
             </div>
-
             <div class="row g-4">
                 <div class="col-md-4">
-                    <div class="ai-card">
-                        <div class="ai-card-icon">
-                            <i class="fas fa-layer-group"></i>
-                        </div>
-                        <h3 class="ai-card-title">LLMs & RAG Architectures</h3>
-                        <p class="ai-card-desc">
-                            Designing context-aware document search engines, vector databases (Chroma/FAISS), and prompt-engineered workflows using OpenAI, Claude, and local Ollama models.
-                        </p>
-                        <div class="chip-list">
-                            <span class="tag-chip ai">RAG Pipelines</span>
-                            <span class="tag-chip ai">Ollama / LLMs</span>
-                            <span class="tag-chip">Python</span>
-                            <span class="tag-chip">LangChain</span>
-                        </div>
+                    <div class="ai-card spot tilt">
+                        <span class="ai-card__num">01</span>
+                        <div class="ai-card__icon"><i class="fas fa-layer-group"></i></div>
+                        <h3 class="ai-card__title">LLMs &amp; RAG architectures</h3>
+                        <p class="ai-card__desc">Context-aware document search engines, vector databases (Chroma / FAISS) and prompt-engineered workflows using Claude, OpenAI and local Ollama models.</p>
+                        <div class="chip-list"><span class="tag-chip ai">RAG pipelines</span><span class="tag-chip ai">Ollama / LLMs</span><span class="tag-chip">Python</span><span class="tag-chip">LangChain</span></div>
                     </div>
                 </div>
-
                 <div class="col-md-4">
-                    <div class="ai-card">
-                        <div class="ai-card-icon">
-                            <i class="fas fa-robot"></i>
-                        </div>
-                        <h3 class="ai-card-title">Agentic AI & Automation</h3>
-                        <p class="ai-card-desc">
-                            Creating autonomous agentic workflows that write, audit, and optimize code, automate CI/CD tasks, and process unstructured business data with high accuracy.
-                        </p>
-                        <div class="chip-list">
-                            <span class="tag-chip ai">AI Agents</span>
-                            <span class="tag-chip ai">Prompt Engineering</span>
-                            <span class="tag-chip">Auto-GPT</span>
-                            <span class="tag-chip">PyTorch</span>
-                        </div>
+                    <div class="ai-card spot tilt">
+                        <span class="ai-card__num">02</span>
+                        <div class="ai-card__icon"><i class="fas fa-robot"></i></div>
+                        <h3 class="ai-card__title">Agentic AI &amp; automation</h3>
+                        <p class="ai-card__desc">Autonomous agent workflows that write, audit and optimise code, automate CI/CD tasks and process unstructured business data — including in-sprint AI automation in corporate banking.</p>
+                        <div class="chip-list"><span class="tag-chip ai">AI agents</span><span class="tag-chip ai">Prompt engineering</span><span class="tag-chip">Claude Code</span><span class="tag-chip">PyTorch</span></div>
                     </div>
                 </div>
-
                 <div class="col-md-4">
-                    <div class="ai-card">
-                        <div class="ai-card-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <h3 class="ai-card-title">Machine Learning & Big Data</h3>
-                        <p class="ai-card-desc">
-                            Building data pipelines and statistical prediction models using Python, Pandas, and NumPy for financial markets, analytics dashboards, and mobile app engines.
-                        </p>
-                        <div class="chip-list">
-                            <span class="tag-chip ai">Data Science</span>
-                            <span class="tag-chip">Pandas / NumPy</span>
-                            <span class="tag-chip">Scikit-learn</span>
-                            <span class="tag-chip">MongoDB</span>
-                        </div>
+                    <div class="ai-card spot tilt">
+                        <span class="ai-card__num">03</span>
+                        <div class="ai-card__icon"><i class="fas fa-chart-line"></i></div>
+                        <h3 class="ai-card__title">Machine learning &amp; data</h3>
+                        <p class="ai-card__desc">Data pipelines and statistical prediction models with Python, Pandas and NumPy for financial markets, analytics dashboards and mobile-app engines.</p>
+                        <div class="chip-list"><span class="tag-chip ai">Data science</span><span class="tag-chip">Pandas / NumPy</span><span class="tag-chip">Scikit-learn</span><span class="tag-chip">MongoDB</span></div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Interactive AI Assistant Demo Sandbox -->
-    <section class="py-5 bg-dark-subtle" id="ai-assistant">
+    <!-- Skills -->
+    <section class="section" id="skills">
         <div class="container">
-            <div class="row align-items-center mb-4">
-                <div class="col-lg-12">
-                    <h2>Ask <span class="gradient-text">Ajith's AI Assistant</span></h2>
-                    <p class="text-muted mb-0">Recruiters can interact with this embedded smart assistant to instantly get details about Ajith's experience, technical capabilities, projects, and contact info.</p>
-                </div>
+            <div class="section-head text-center">
+                <span class="section-tag centered"><i class="fas fa-laptop-code"></i> Technical skill matrix</span>
+                <h2 class="section-title">Tools &amp; technologies</h2>
+                <p class="section-sub">Filter by domain or search — bars show hands-on depth. Ask the assistant for years and context on any of them.</p>
             </div>
-
-            <div class="ai-chat-container">
-                <div class="chat-header">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="chat-avatar">
-                            <i class="fas fa-brain"></i>
-                        </div>
-                        <div>
-                            <div class="d-flex align-items-center gap-2">
-                                <strong class="d-block text-main">Ajith AI Assistant</strong>
-                                <span class="chat-header-badge"><i class="fas fa-microchip"></i> Reasoning Engine</span>
-                            </div>
-                            <small class="text-success"><i class="fas fa-circle-check"></i> Knowledge Base Active</small>
-                        </div>
-                    </div>
-                    <button class="chat-clear-btn" id="ai-clear-btn" onclick="clearAIChat()" title="Clear Conversation">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </div>
-
-                <div class="chat-body" id="ai-chat-body">
-                    <div class="chat-msg bot">
-                        <div class="chat-avatar"><i class="fas fa-robot"></i></div>
-                        <div class="chat-bubble">
-                            👋 Hi there! I'm Ajith's AI Assistant with step-by-step reasoning enabled. Ask me anything about Ajith's <strong>experience</strong>, <strong>AI expertise</strong>, or <strong>top projects</strong>!
-                        </div>
-                    </div>
-                </div>
-
-                <div class="suggested-prompts">
-                    <button class="prompt-chip" onclick="sendAIPrompt('What is Ajith\'s AI experience?')">✨ AI Expertise</button>
-                    <button class="prompt-chip" onclick="sendAIPrompt('Show me Ajith\'s top projects')">🚀 Top Projects</button>
-                    <button class="prompt-chip" onclick="sendAIPrompt('What technologies does Ajith use?')">🛠️ Tech Stack</button>
-                    <button class="prompt-chip" onclick="sendAIPrompt('How do I contact Ajith?')">📬 Contact Info</button>
-                </div>
-
-                <div class="chat-input-area">
-                    <input type="text" class="chat-input" id="ai-chat-input" placeholder="Ask a question (e.g. 'Tell me about Ajith's Python & LLM experience')...">
-                    <button class="chat-send-btn" id="ai-send-btn" title="Send Message">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Interactive Skill Matrix -->
-    <section class="py-5" id="skills">
-        <div class="container">
-            <div class="text-center mb-4">
-                <span class="section-tag"><i class="fas fa-laptop-code"></i> TECHNICAL SKILL MATRIX</span>
-                <h2>Tools & Technologies</h2>
-                <p class="text-muted">Filter skills by domain or search for specific technologies.</p>
-            </div>
-
-            <!-- Search and Filter Bar -->
             <div class="row justify-content-center mb-4">
-                <div class="col-md-7 col-lg-6">
+                <div class="col-md-7 col-lg-5">
                     <div class="skill-search-wrapper">
                         <i class="fas fa-search skill-search-icon"></i>
-                        <input type="text" id="skill-search" class="skill-search-input" placeholder="Search skills (e.g. Next.js, Python, Swift, Docker)..." autocomplete="off">
-                        <button id="skill-search-clear" class="skill-search-clear" title="Clear Search" style="display: none;">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <input type="text" id="skill-search" class="skill-search-input" placeholder="Search skills (e.g. Next.js, Python, Swift, Docker)…" autocomplete="off">
+                        <button id="skill-search-clear" class="skill-search-clear" title="Clear" style="display:none"><i class="fas fa-times"></i></button>
                     </div>
                 </div>
             </div>
-
-            <div class="skill-filter-tabs">
-                <button class="filter-tab active" data-filter="all">All Skills</button>
-                <button class="filter-tab" data-filter="ai">AI & ML</button>
-                <button class="filter-tab" data-filter="web">Web Engineering</button>
-                <button class="filter-tab" data-filter="mobile">Mobile & Desktop</button>
-                <button class="filter-tab" data-filter="database">Databases & Cloud</button>
-                <button class="filter-tab" data-filter="tools">DevOps & Tools</button>
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all">All</button>
+                <button class="filter-tab" data-filter="ai">AI &amp; ML</button>
+                <button class="filter-tab" data-filter="web">Web engineering</button>
+                <button class="filter-tab" data-filter="mobile">Mobile</button>
+                <button class="filter-tab" data-filter="database">Databases &amp; cloud</button>
+                <button class="filter-tab" data-filter="tools">DevOps &amp; tools</button>
             </div>
 
             <div class="row g-3" id="skill-grid">
-                <!-- AI & ML Skills -->
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="ai web">
-                    <div class="skill-card">
-                        <i class="fab fa-python text-warning skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Python 3</div>
-                            <div class="skill-cat">AI / Data / Scripting</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="ai">
-                    <div class="skill-card">
-                        <i class="fas fa-brain text-success skill-icon"></i>
-                        <div>
-                            <div class="skill-name">LLMs & RAG</div>
-                            <div class="skill-cat">Ollama / OpenAI / Claude</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="ai">
-                    <div class="skill-card">
-                        <i class="fas fa-chart-pie text-info skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Pandas / NumPy</div>
-                            <div class="skill-cat">Data Analysis</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="ai">
-                    <div class="skill-card">
-                        <i class="fas fa-book-open text-warning skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Jupyter / Colab</div>
-                            <div class="skill-cat">ML Prototyping</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Web Skills -->
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="web">
-                    <div class="skill-card">
-                        <i class="fab fa-react text-info skill-icon"></i>
-                        <div>
-                            <div class="skill-name">React / Next.js</div>
-                            <div class="skill-cat">Modern Frontend</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="web">
-                    <div class="skill-card">
-                        <i class="fab fa-vuejs text-success skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Vue.js</div>
-                            <div class="skill-cat">Progressive Web App</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="web">
-                    <div class="skill-card">
-                        <i class="fab fa-node-js text-success skill-icon"></i>
-                        <div>
-                            <div class="skill-name">NodeJS</div>
-                            <div class="skill-cat">Async Backend API</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="web">
-                    <div class="skill-card">
-                        <i class="fab fa-laravel text-danger skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Laravel & PHP</div>
-                            <div class="skill-cat">Full-Stack Framework</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Mobile Skills -->
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="mobile">
-                    <div class="skill-card">
-                        <i class="fab fa-apple text-light skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Swift / iOS</div>
-                            <div class="skill-cat">Native iOS Apps</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="mobile">
-                    <div class="skill-card">
-                        <i class="fab fa-android text-success skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Kotlin / Android</div>
-                            <div class="skill-cat">Native Mobile Dev</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="mobile">
-                    <div class="skill-card">
-                        <i class="fas fa-mobile-alt text-info skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Flutter / Dart</div>
-                            <div class="skill-cat">Cross-Platform App</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Database & Cloud Skills -->
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="database">
-                    <div class="skill-card">
-                        <i class="fas fa-database text-success skill-icon"></i>
-                        <div>
-                            <div class="skill-name">MongoDB</div>
-                            <div class="skill-cat">NoSQL Database</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="database">
-                    <div class="skill-card">
-                        <i class="fas fa-server text-info skill-icon"></i>
-                        <div>
-                            <div class="skill-name">MySQL / MariaDB</div>
-                            <div class="skill-cat">Relational SQL</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="database">
-                    <div class="skill-card">
-                        <i class="fab fa-aws text-warning skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Amazon AWS</div>
-                            <div class="skill-cat">Cloud Architecture</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Dev Tools -->
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="tools">
-                    <div class="skill-card">
-                        <i class="fab fa-git-alt text-danger skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Git & GitHub</div>
-                            <div class="skill-cat">Version Control</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-sm-4 col-md-3 skill-item" data-category="tools">
-                    <div class="skill-card">
-                        <i class="fab fa-linux text-warning skill-icon"></i>
-                        <div>
-                            <div class="skill-name">Linux & Bash</div>
-                            <div class="skill-cat">Server Administration</div>
-                        </div>
-                    </div>
-                </div>
+                <!-- AI -->
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="ai web"><div class="skill-card"><div class="skill-icon"><i class="fab fa-python" style="color:#f59e0b"></i></div><div class="skill-body"><div class="skill-name">Python 3</div><div class="skill-cat">AI · data · scripting</div><div class="skill-bar"><span style="--level:80%"></span></div></div><span class="skill-years">4y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="ai"><div class="skill-card"><div class="skill-icon"><i class="fas fa-brain" style="color:#10b981"></i></div><div class="skill-body"><div class="skill-name">LLMs &amp; RAG</div><div class="skill-cat">Claude · OpenAI · Ollama</div><div class="skill-bar"><span style="--level:84%"></span></div></div><span class="skill-years">3y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="ai"><div class="skill-card"><div class="skill-icon"><i class="fas fa-robot" style="color:#a855f7"></i></div><div class="skill-body"><div class="skill-name">AI agents &amp; prompts</div><div class="skill-cat">Agentic automation</div><div class="skill-bar"><span style="--level:82%"></span></div></div><span class="skill-years">3y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="ai"><div class="skill-card"><div class="skill-icon"><i class="fas fa-chart-pie" style="color:#06b6d4"></i></div><div class="skill-body"><div class="skill-name">Pandas / NumPy</div><div class="skill-cat">Data analysis · ML</div><div class="skill-bar"><span style="--level:72%"></span></div></div><span class="skill-years">3y+</span></div></div>
+                <!-- Web -->
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fab fa-js" style="color:#eab308"></i></div><div class="skill-body"><div class="skill-name">JavaScript (ES6+)</div><div class="skill-cat">Core language</div><div class="skill-bar"><span style="--level:95%"></span></div></div><span class="skill-years">7y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fas fa-code" style="color:#3b82f6"></i></div><div class="skill-body"><div class="skill-name">TypeScript</div><div class="skill-cat">Type-safe services</div><div class="skill-bar"><span style="--level:88%"></span></div></div><span class="skill-years">5y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fab fa-react" style="color:#22d3ee"></i></div><div class="skill-body"><div class="skill-name">React / Next.js</div><div class="skill-cat">Modern frontend · SSR</div><div class="skill-bar"><span style="--level:92%"></span></div></div><span class="skill-years">6y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fab fa-node-js" style="color:#22c55e"></i></div><div class="skill-body"><div class="skill-name">Node.js / Express</div><div class="skill-cat">Microservices · APIs</div><div class="skill-bar"><span style="--level:92%"></span></div></div><span class="skill-years">6y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fab fa-angular" style="color:#ef4444"></i></div><div class="skill-body"><div class="skill-name">Angular</div><div class="skill-cat">Enterprise portals</div><div class="skill-bar"><span style="--level:70%"></span></div></div><span class="skill-years">3y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fab fa-vuejs" style="color:#10b981"></i></div><div class="skill-body"><div class="skill-name">Vue.js</div><div class="skill-cat">Progressive web apps</div><div class="skill-bar"><span style="--level:60%"></span></div></div><span class="skill-years">2y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fab fa-laravel" style="color:#f43f5e"></i></div><div class="skill-body"><div class="skill-name">PHP / Laravel</div><div class="skill-cat">Full-stack framework</div><div class="skill-bar"><span style="--level:76%"></span></div></div><span class="skill-years">4y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fas fa-wind" style="color:#06b6d4"></i></div><div class="skill-body"><div class="skill-name">Tailwind / CSS / UI-UX</div><div class="skill-cat">High-fidelity interfaces</div><div class="skill-bar"><span style="--level:88%"></span></div></div><span class="skill-years">7y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web tools"><div class="skill-card"><div class="skill-icon"><i class="fas fa-project-diagram" style="color:#8b5cf6"></i></div><div class="skill-body"><div class="skill-name">REST · GraphQL · Kafka</div><div class="skill-cat">APIs · WebSockets · Protobuf</div><div class="skill-bar"><span style="--level:85%"></span></div></div><span class="skill-years">6y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="web"><div class="skill-card"><div class="skill-icon"><i class="fas fa-code" style="color:#0ea5e9"></i></div><div class="skill-body"><div class="skill-name">Golang</div><div class="skill-cat">Backend functions</div><div class="skill-bar"><span style="--level:55%"></span></div></div><span class="skill-years">2y+</span></div></div>
+                <!-- Mobile -->
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="mobile"><div class="skill-card"><div class="skill-icon"><i class="fab fa-apple" style="color:var(--text)"></i></div><div class="skill-body"><div class="skill-name">Swift / SwiftUI</div><div class="skill-cat">Native iOS · WidgetKit</div><div class="skill-bar"><span style="--level:72%"></span></div></div><span class="skill-years">3y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="mobile"><div class="skill-card"><div class="skill-icon"><i class="fab fa-android" style="color:#22c55e"></i></div><div class="skill-body"><div class="skill-name">Kotlin / Android</div><div class="skill-cat">Native mobile</div><div class="skill-bar"><span style="--level:62%"></span></div></div><span class="skill-years">3y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="mobile web"><div class="skill-card"><div class="skill-icon"><i class="fab fa-react" style="color:#38bdf8"></i></div><div class="skill-body"><div class="skill-name">React Native</div><div class="skill-cat">Cross-platform apps</div><div class="skill-bar"><span style="--level:78%"></span></div></div><span class="skill-years">3y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="mobile"><div class="skill-card"><div class="skill-icon"><i class="fas fa-mobile-alt" style="color:#0ea5e9"></i></div><div class="skill-body"><div class="skill-name">Flutter / Dart</div><div class="skill-cat">Cross-platform apps</div><div class="skill-bar"><span style="--level:58%"></span></div></div><span class="skill-years">2y+</span></div></div>
+                <!-- Databases & cloud -->
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="database"><div class="skill-card"><div class="skill-icon"><i class="fas fa-leaf" style="color:#22c55e"></i></div><div class="skill-body"><div class="skill-name">MongoDB</div><div class="skill-cat">NoSQL · Atlas</div><div class="skill-bar"><span style="--level:90%"></span></div></div><span class="skill-years">5y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="database"><div class="skill-card"><div class="skill-icon"><i class="fas fa-database" style="color:#3b82f6"></i></div><div class="skill-body"><div class="skill-name">MySQL / MariaDB</div><div class="skill-cat">Relational SQL</div><div class="skill-bar"><span style="--level:85%"></span></div></div><span class="skill-years">6y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="database"><div class="skill-card"><div class="skill-icon"><i class="fas fa-server" style="color:#6366f1"></i></div><div class="skill-body"><div class="skill-name">PostgreSQL / OracleDB</div><div class="skill-cat">Enterprise data</div><div class="skill-bar"><span style="--level:80%"></span></div></div><span class="skill-years">4y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="database"><div class="skill-card"><div class="skill-icon"><i class="fas fa-bolt" style="color:#ef4444"></i></div><div class="skill-body"><div class="skill-name">Redis · DynamoDB · Neo4j</div><div class="skill-cat">Cache · KV · graph</div><div class="skill-bar"><span style="--level:74%"></span></div></div><span class="skill-years">5y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="database tools"><div class="skill-card"><div class="skill-icon"><i class="fab fa-aws" style="color:#f59e0b"></i></div><div class="skill-body"><div class="skill-name">Amazon AWS</div><div class="skill-cat">EKS · Lambda · RDS · S3</div><div class="skill-bar"><span style="--level:84%"></span></div></div><span class="skill-years">5y+</span></div></div>
+                <!-- Tools -->
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="tools"><div class="skill-card"><div class="skill-icon"><i class="fab fa-docker" style="color:#0ea5e9"></i></div><div class="skill-body"><div class="skill-name">Docker / Kubernetes</div><div class="skill-cat">Containers · orchestration</div><div class="skill-bar"><span style="--level:78%"></span></div></div><span class="skill-years">4y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="tools"><div class="skill-card"><div class="skill-icon"><i class="fab fa-jenkins" style="color:#f43f5e"></i></div><div class="skill-body"><div class="skill-name">CI/CD · Jenkins</div><div class="skill-cat">Bitbucket pipelines</div><div class="skill-bar"><span style="--level:80%"></span></div></div><span class="skill-years">4y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="tools"><div class="skill-card"><div class="skill-icon"><i class="fab fa-git-alt" style="color:#f97316"></i></div><div class="skill-body"><div class="skill-name">Git · Jira · Agile</div><div class="skill-cat">Version control · sprints</div><div class="skill-bar"><span style="--level:92%"></span></div></div><span class="skill-years">7y+</span></div></div>
+                <div class="col-6 col-md-4 col-lg-3 skill-item" data-category="tools"><div class="skill-card"><div class="skill-icon"><i class="fab fa-linux" style="color:#eab308"></i></div><div class="skill-body"><div class="skill-name">Linux &amp; Bash</div><div class="skill-cat">Server administration</div><div class="skill-bar"><span style="--level:85%"></span></div></div><span class="skill-years">7y+</span></div></div>
             </div>
-            
-            <div id="skills-no-match" class="text-center text-muted my-4" style="display:none;">
-                <i class="fas fa-search me-2"></i> No skills matching your search query.
-            </div>
+            <div id="skills-no-match" class="text-center text-muted my-4" style="display:none"><i class="fas fa-search me-2"></i> No skills match that search.</div>
         </div>
     </section>
 
-    <!-- Projects Showcase -->
-    <section class="py-5 bg-dark-subtle" id="projects">
+    <!-- Projects -->
+    <section class="section" id="projects">
         <div class="container">
-            <div class="text-center mb-4">
-                <span class="section-tag"><i class="fas fa-cubes"></i> FEATURED PORTFOLIO</span>
-                <h2>Featured Projects</h2>
-                <p class="text-muted">A selection of intelligent enterprise platforms, cloud services, and mobile software.</p>
+            <div class="section-head text-center">
+                <span class="section-tag centered"><i class="fas fa-cubes"></i> Featured portfolio</span>
+                <h2 class="section-title">Featured projects</h2>
+                <p class="section-sub">Intelligent enterprise platforms, cloud services and mobile software — shipped to real users.</p>
             </div>
-
-            <div class="skill-filter-tabs mb-4">
-                <button class="project-tab active" data-filter="all">All Projects</button>
-                <button class="project-tab" data-filter="ai">AI & Analytics</button>
-                <button class="project-tab" data-filter="web">Web Platforms</button>
-                <button class="project-tab" data-filter="mobile">Mobile Apps</button>
+            <div class="filter-tabs">
+                <button class="project-tab active" data-filter="all">All projects</button>
+                <button class="project-tab" data-filter="ai">AI &amp; analytics</button>
+                <button class="project-tab" data-filter="web">Web platforms</button>
+                <button class="project-tab" data-filter="mobile">Mobile apps</button>
             </div>
-
             <div class="row g-4">
-                <!-- Project 1: reach52 insights -->
                 <div class="col-md-6 col-lg-4 project-item" data-category="ai web">
-                    <div class="project-card">
-                        <div class="project-header-bg">
-                            <span class="badge bg-success project-badge"><i class="fas fa-chart-line"></i> Analytics & AI</span>
-                            <h4 class="project-header-title mb-0">reach52 Insights</h4>
-                        </div>
+                    <article class="project-card spot tilt">
+                        <div class="project-art art-1"><span class="project-badge">Analytics &amp; AI</span><i class="fas fa-chart-line art-icon"></i><h4>reach52 Insights</h4></div>
                         <div class="project-body">
-                            <h5 class="project-title">reach52 Insights Platform</h5>
-                            <p class="project-desc">
-                                Enterprise monitoring platform designed to graphically showcase complex analytical and statistical data in human-friendly formats for global healthcare projects.
-                            </p>
-                            <div class="chip-list">
-                                <span class="tag-chip ai">NodeJS</span>
-                                <span class="tag-chip">React / Redux</span>
-                                <span class="tag-chip">PostgreSQL</span>
-                                <span class="tag-chip">AWS EKS</span>
-                            </div>
+                            <h5 class="project-title">Insights analytics platform</h5>
+                            <div class="project-meta">2023 – present · reach52 · AWS EKS</div>
+                            <p class="project-desc">Enterprise monitoring platform presenting complex analytical and statistical data in human-friendly formats for global healthcare projects.</p>
+                            <div class="chip-list"><span class="tag-chip ai">Node.js</span><span class="tag-chip">React / Redux</span><span class="tag-chip">PostgreSQL</span><span class="tag-chip">Bitbucket Pipelines</span></div>
                         </div>
-                    </div>
+                    </article>
                 </div>
-
-                <!-- Project 2: reach52 connect -->
                 <div class="col-md-6 col-lg-4 project-item" data-category="web">
-                    <div class="project-card">
-                        <div class="project-header-bg">
-                            <span class="badge bg-info project-badge"><i class="fas fa-tasks"></i> Admin Suite</span>
-                            <h4 class="project-header-title mb-0">reach52 Connect</h4>
-                        </div>
+                    <article class="project-card spot tilt">
+                        <div class="project-art art-2"><span class="project-badge">Admin suite</span><i class="fas fa-tasks art-icon"></i><h4>reach52 Connect</h4></div>
                         <div class="project-body">
-                            <h5 class="project-title">reach52 Admin Automation</h5>
-                            <p class="project-desc">
-                                Internal business administration system automating user tracking, campaign creation, and daily operational activities across distributed teams.
-                            </p>
-                            <div class="chip-list">
-                                <span class="tag-chip">NodeJS</span>
-                                <span class="tag-chip">Angular</span>
-                                <span class="tag-chip">MongoDB</span>
-                                <span class="tag-chip">AWS EC2 / Jenkins</span>
-                            </div>
+                            <h5 class="project-title">Admin &amp; campaign automation</h5>
+                            <div class="project-meta">2022 – 2023 · reach52 · AWS EC2 / Jenkins</div>
+                            <p class="project-desc">Internal business-administration system automating user tracking, campaign creation and daily operations across distributed teams.</p>
+                            <div class="chip-list"><span class="tag-chip">Node.js</span><span class="tag-chip">Angular</span><span class="tag-chip">Material UI</span><span class="tag-chip">MongoDB</span></div>
                         </div>
-                    </div>
+                    </article>
                 </div>
-
-                <!-- Project 3: Tutorhow Virtual Front Desk -->
                 <div class="col-md-6 col-lg-4 project-item" data-category="web ai">
-                    <div class="project-card">
-                        <div class="project-header-bg">
-                            <span class="badge bg-primary project-badge"><i class="fas fa-layer-group"></i> Next.js PWA</span>
-                            <h4 class="project-header-title mb-0">Tutorhow Lead System</h4>
-                        </div>
+                    <article class="project-card spot tilt">
+                        <div class="project-art art-3"><span class="project-badge">Next.js PWA</span><i class="fas fa-layer-group art-icon"></i><h4>Tutorhow Front Desk</h4></div>
                         <div class="project-body">
-                            <h5 class="project-title">Virtual Front Desk & Lead LMS</h5>
-                            <p class="project-desc">
-                                High-performance Progressive Web App (PWA) container for lead management, Graph databases, and backend microservices.
-                            </p>
-                            <div class="chip-list">
-                                <span class="tag-chip">Next.js (Full Stack)</span>
-                                <span class="tag-chip">Golang</span>
-                                <span class="tag-chip">Neo4J</span>
-                                <span class="tag-chip">MongoDB & Redis</span>
-                            </div>
+                            <h5 class="project-title">Virtual front desk &amp; lead LMS</h5>
+                            <div class="project-meta">2020 – 2021 · Tutorhow · Lead developer</div>
+                            <p class="project-desc">High-performance Progressive Web App for lead management with graph data, backend micro-functions and multi-database persistence.</p>
+                            <div class="chip-list"><span class="tag-chip">Next.js (full stack)</span><span class="tag-chip">Golang</span><span class="tag-chip">Neo4j</span><span class="tag-chip">MongoDB &amp; Redis</span></div>
                         </div>
-                    </div>
+                    </article>
                 </div>
-
-                <!-- Project 4: Tutorhow Training App -->
                 <div class="col-md-6 col-lg-4 project-item" data-category="mobile">
-                    <div class="project-card">
-                        <div class="project-header-bg">
-                            <span class="badge bg-warning text-dark project-badge"><i class="fas fa-mobile-alt"></i> Mobile App</span>
-                            <h4 class="project-header-title mb-0">Tutorhow Mobile App</h4>
-                        </div>
+                    <article class="project-card spot tilt">
+                        <div class="project-art art-4"><span class="project-badge">Mobile app</span><i class="fas fa-mobile-alt art-icon"></i><h4>Tutorhow Mobile</h4></div>
                         <div class="project-body">
-                            <h5 class="project-title">Training Institute Mobile App</h5>
-                            <p class="project-desc">
-                                White-labelled mobile application developed for edtech clients to run training institutes with serverless cloud infrastructure.
-                            </p>
-                            <div class="chip-list">
-                                <span class="tag-chip">React Native</span>
-                                <span class="tag-chip">AWS Lambda</span>
-                                <span class="tag-chip">MongoDB Atlas</span>
-                            </div>
+                            <h5 class="project-title">White-labelled training app</h5>
+                            <div class="project-meta">2019 – 2021 · Tutorhow · Serverless</div>
+                            <p class="project-desc">White-labelled mobile application for edtech clients to run training institutes, backed by serverless cloud infrastructure.</p>
+                            <div class="chip-list"><span class="tag-chip">React Native</span><span class="tag-chip">AWS Lambda</span><span class="tag-chip">MongoDB Atlas</span></div>
                         </div>
-                    </div>
+                    </article>
                 </div>
-
-                <!-- Project 5: Tutorhow ETO -->
                 <div class="col-md-6 col-lg-4 project-item" data-category="web">
-                    <div class="project-card">
-                        <div class="project-header-bg">
-                            <span class="badge bg-info project-badge"><i class="fas fa-graduation-cap"></i> EdTech</span>
-                            <h4 class="project-header-title mb-0">Tutorhow ETO</h4>
-                        </div>
+                    <article class="project-card spot tilt">
+                        <div class="project-art art-5"><span class="project-badge">EdTech</span><i class="fas fa-graduation-cap art-icon"></i><h4>Tutorhow ETO</h4></div>
                         <div class="project-body">
-                            <h5 class="project-title">Online Learning & Fee Platform</h5>
-                            <p class="project-desc">
-                                Online class platform enabling educators to market under their own brand, collect student fees, schedule classes, and grade assignments.
-                            </p>
-                            <div class="chip-list">
-                                <span class="tag-chip">PHP Laravel</span>
-                                <span class="tag-chip">NodeJS</span>
-                                <span class="tag-chip">MySQL & DynamoDB</span>
-                            </div>
+                            <h5 class="project-title">Online learning &amp; fee platform</h5>
+                            <div class="project-meta">2019 – 2021 · Tutorhow · VPS</div>
+                            <p class="project-desc">Online-class platform letting educators market under their own brand, collect fees, schedule classes and grade assignments.</p>
+                            <div class="chip-list"><span class="tag-chip">PHP Laravel</span><span class="tag-chip">Node.js</span><span class="tag-chip">MySQL &amp; DynamoDB</span></div>
                         </div>
-                    </div>
+                    </article>
                 </div>
-
-                <!-- Project 6: Gold Vault Tracker -->
                 <div class="col-md-6 col-lg-4 project-item" data-category="mobile">
-                    <div class="project-card">
-                        <div class="project-header-bg">
-                            <span class="badge bg-primary project-badge"><i class="fab fa-apple"></i> iOS</span>
-                            <h4 class="project-header-title mb-0">Gold Vault Tracker</h4>
-                        </div>
+                    <article class="project-card spot tilt">
+                        <div class="project-art art-6"><span class="project-badge">iOS · SwiftUI</span><i class="fab fa-apple art-icon"></i><h4>Gold Vault Tracker</h4></div>
                         <div class="project-body">
-                            <h5 class="project-title">Gold Vault Investment App</h5>
-                            <p class="project-desc">
-                                Native iOS asset tracking application featuring custom WidgetKit extensions, real-time market APIs, and biometric authentication.
-                            </p>
-                            <div class="chip-list">
-                                <span class="tag-chip">Swift / iOS</span>
-                                <span class="tag-chip">SwiftUI</span>
-                                <span class="tag-chip">WidgetKit</span>
-                            </div>
+                            <h5 class="project-title">Precious-metals investment app</h5>
+                            <div class="project-meta">2023 – present · Personal · App Store</div>
+                            <p class="project-desc">Native iOS asset-tracking app with WidgetKit home-screen widgets, real-time market APIs and biometric authentication.</p>
+                            <div class="chip-list"><span class="tag-chip">Swift</span><span class="tag-chip">SwiftUI</span><span class="tag-chip">WidgetKit</span></div>
                         </div>
-                    </div>
+                    </article>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Work Experience Timeline -->
-    <section class="py-5" id="experience">
+    <!-- Experience -->
+    <section class="section" id="experience">
         <div class="container">
-            <div class="text-center mb-5">
-                <span class="section-tag"><i class="fas fa-briefcase"></i> CAREER MILESTONES</span>
-                <h2>Work Experience</h2>
-                <p class="text-muted">Proven engineering track record across corporate banking, cloud microservices, and edtech platforms.</p>
+            <div class="section-head text-center">
+                <span class="section-tag centered"><i class="fas fa-briefcase"></i> Career milestones</span>
+                <h2 class="section-title">Work experience</h2>
+                <p class="section-sub">A proven track record across corporate banking, cloud microservices and edtech platforms.</p>
             </div>
-
-            <div class="timeline-container">
-                <!-- Timeline Item 1: Emirates NBD -->
-                <div class="timeline-item">
+            <div class="timeline">
+                <div class="timeline__line"></div>
+                <div class="timeline-item current">
                     <div class="timeline-dot"></div>
-                    <div class="timeline-content">
+                    <div class="timeline-content spot">
                         <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                            <div class="timeline-role">Full Stack Engineer (Corporate Banking)</div>
-                            <span class="timeline-badge current">11/2024 - Present</span>
+                            <div class="timeline-role">Full Stack Engineer · Corporate Banking</div>
+                            <span class="timeline-badge current">11/2024 – Present</span>
                         </div>
                         <div class="timeline-company">Emirates NBD (via Synechron Technologies)</div>
                         <div class="timeline-date"><i class="fas fa-map-marker-alt me-1"></i> Dubai, UAE</div>
-                        <p class="text-muted small">
-                            Developing full-fledged corporate banking applications for Relationship Manager daily management and deal processing. Prioritized AI-based (Claude) development with in-sprint automation. Integrates React, Node custom frameworks, MongoDB, and OracleDB.
-                        </p>
-                        <div class="chip-list">
-                            <span class="tag-chip ai">Claude AI Automation</span>
-                            <span class="tag-chip">React</span>
-                            <span class="tag-chip">NodeJS</span>
-                            <span class="tag-chip">MongoDB</span>
-                            <span class="tag-chip">OracleDB</span>
-                        </div>
+                        <p class="text-muted small">Developing corporate-banking applications for Relationship-Manager daily management and deal processing. Prioritised AI-based (Claude) development with in-sprint automation. React and Node.js on custom frameworks, MongoDB primary store, OracleDB for shared services.</p>
+                        <div class="chip-list"><span class="tag-chip ai">Claude AI automation</span><span class="tag-chip">React</span><span class="tag-chip">Node.js</span><span class="tag-chip">MongoDB</span><span class="tag-chip">OracleDB</span></div>
                     </div>
                 </div>
-
-                <!-- Timeline Item 2: reach52 -->
                 <div class="timeline-item">
                     <div class="timeline-dot"></div>
-                    <div class="timeline-content">
+                    <div class="timeline-content spot">
                         <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                             <div class="timeline-role">Full Stack Engineer</div>
-                            <span class="timeline-badge primary">01/2022 - 11/2024</span>
+                            <span class="timeline-badge primary">01/2022 – 11/2024</span>
                         </div>
                         <div class="timeline-company">reach52 Pte. Ltd.</div>
-                        <div class="timeline-date"><i class="fas fa-globe me-1"></i> Singapore (Remote)</div>
-                        <p class="text-muted small">
-                            Engineered microservices-based data management & analytics applications. Built scalable systems with Next.js, Node.js (Express), MongoDB, and AWS (EKS, EC2, Lambda, S3, RDS, ElastiCache). Implemented CI/CD pipelines via Jenkins, Bitbucket, Docker, and Kubernetes.
-                        </p>
-                        <div class="chip-list">
-                            <span class="tag-chip">Next.js / React</span>
-                            <span class="tag-chip">NodeJS</span>
-                            <span class="tag-chip">Angular & Redux</span>
-                            <span class="tag-chip">AWS (EKS, Lambda)</span>
-                            <span class="tag-chip">Docker & K8s</span>
-                        </div>
+                        <div class="timeline-date"><i class="fas fa-globe me-1"></i> Singapore (remote)</div>
+                        <p class="text-muted small">Engineered microservices-based data-management and analytics applications. Next.js, Node.js (Express), MongoDB and AWS (EKS, EC2, Lambda, S3, RDS, ElastiCache). CI/CD via Jenkins, Bitbucket Pipelines, Docker and Kubernetes.</p>
+                        <div class="chip-list"><span class="tag-chip">Next.js / React</span><span class="tag-chip">Node.js</span><span class="tag-chip">Angular &amp; Redux</span><span class="tag-chip">AWS (EKS, Lambda)</span><span class="tag-chip">Docker &amp; K8s</span></div>
                     </div>
                 </div>
-
-                <!-- Timeline Item 3: Tutorhow -->
                 <div class="timeline-item">
                     <div class="timeline-dot"></div>
-                    <div class="timeline-content">
+                    <div class="timeline-content spot">
                         <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                            <div class="timeline-role">Lead Developer / Full Stack Engineer</div>
-                            <span class="timeline-badge warning">01/2020 - 12/2021</span>
+                            <div class="timeline-role">Lead Developer · Full Stack Engineer</div>
+                            <span class="timeline-badge warning">01/2020 – 12/2021</span>
                         </div>
                         <div class="timeline-company">Tutorhow Scientific Edutech Pvt. Ltd.</div>
                         <div class="timeline-date"><i class="fas fa-map-marker-alt me-1"></i> Cochin, India</div>
-                        <p class="text-muted small">
-                            Led a team of 3 developers and 2 QA professionals. Built scalable applications with Next.js, Tailwind CSS, Laravel, MongoDB, MySQL, MariaDB, Redis, DynamoDB, and WebSockets. Developed React Native mobile apps and real-time audio/video streaming tools.
-                        </p>
-                        <div class="chip-list">
-                            <span class="tag-chip">Team Lead</span>
-                            <span class="tag-chip">Next.js / Tailwind</span>
-                            <span class="tag-chip">React Native</span>
-                            <span class="tag-chip">Laravel / PHP</span>
-                            <span class="tag-chip">WebSockets</span>
-                        </div>
+                        <p class="text-muted small">Led a team of 3 developers and 2 QA engineers. Built scalable applications with Next.js, Tailwind CSS, Laravel, MongoDB, MySQL, MariaDB, Redis, DynamoDB and WebSockets; React Native mobile apps and real-time audio/video tools.</p>
+                        <div class="chip-list"><span class="tag-chip">Team lead</span><span class="tag-chip">Next.js / Tailwind</span><span class="tag-chip">React Native</span><span class="tag-chip">Laravel / PHP</span><span class="tag-chip">WebSockets</span></div>
                     </div>
                 </div>
-
-                <!-- Timeline Item 4: Infosys -->
                 <div class="timeline-item">
                     <div class="timeline-dot"></div>
-                    <div class="timeline-content">
+                    <div class="timeline-content spot">
                         <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                             <div class="timeline-role">Systems Engineer</div>
-                            <span class="timeline-badge secondary">06/2019 - 01/2020</span>
+                            <span class="timeline-badge secondary">06/2019 – 01/2020</span>
                         </div>
                         <div class="timeline-company">Infosys Ltd.</div>
                         <div class="timeline-date"><i class="fas fa-map-marker-alt me-1"></i> Bangalore, India</div>
-                        <p class="text-muted small">
-                            Modified web applications written in Python and provided specialized technical support and resolution on the ServiceNow enterprise platform.
-                        </p>
-                        <div class="chip-list">
-                            <span class="tag-chip">Python</span>
-                            <span class="tag-chip">ServiceNow Platform</span>
-                            <span class="tag-chip">Web Applications</span>
-                        </div>
+                        <p class="text-muted small">Modified web applications written in Python and provided specialised technical support and resolution on the ServiceNow enterprise platform.</p>
+                        <div class="chip-list"><span class="tag-chip">Python</span><span class="tag-chip">ServiceNow</span><span class="tag-chip">Web applications</span></div>
                     </div>
                 </div>
+            </div>
+
+            <div class="edu-card spot">
+                <div class="edu-card__icon"><i class="fas fa-graduation-cap"></i></div>
+                <div>
+                    <h5>Bachelor of Computer Application (BCA)</h5>
+                    <div class="meta">Mahatma Gandhi University · Kottayam, India · 2016 – 2019</div>
+                </div>
+                <div class="grade">7.7<small>CGPA</small></div>
             </div>
         </div>
     </section>
 
-    <!-- Recruiter Quick View Modal -->
+    <!-- Recruiter quick view -->
     <div class="modal fade" id="recruiterModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content modal-content-dark">
                 <div class="modal-header modal-header-dark">
-                    <h5 class="modal-title text-main"><i class="fas fa-id-card text-info me-2"></i> Recruiter Quick Summary</h5>
+                    <h5 class="modal-title text-main"><i class="fas fa-id-card text-info me-2"></i> Recruiter quick summary</h5>
                     <button type="button" class="btn-close btn-close-custom" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body modal-body-dark">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-user-tag text-success me-2"></i> Current Role & Location</h6>
-                            <p class="text-muted small">Full Stack Engineer at Emirates NBD (Synechron Technologies). Based in Dubai, UAE.</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-code text-info me-2"></i> Primary Tech Stack</h6>
-                            <p class="text-muted small">Node.js, React, Next.js, TypeScript, Python, Swift, Kotlin, MongoDB, SQL, AWS, AI Automation.</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-graduation-cap text-warning me-2"></i> Education</h6>
-                            <p class="text-muted small">Bachelor of Computer Application (BCA), Mahatma Gandhi University (7.7 CGPA).</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-envelope text-primary me-2"></i> Contact Info</h6>
-                            <p class="text-muted small">Email: ajithgopikklm@gmail.com / me@agopi.in<br>Phone: (+971) 555-166-278</p>
-                        </div>
+                        <div class="col-md-6"><h6><i class="fas fa-user-tag text-success me-2"></i> Current role &amp; location</h6><p class="text-muted small">Full Stack Engineer at Emirates NBD (via Synechron Technologies). Based in Dubai, UAE. Open to senior full-stack and AI-architecture roles — on-site, remote or relocation.</p></div>
+                        <div class="col-md-6"><h6><i class="fas fa-code text-info me-2"></i> Primary tech stack</h6><p class="text-muted small">Node.js, React, Next.js, TypeScript, Python, Swift, Kotlin, MongoDB, SQL, AWS, Docker/K8s, LLM &amp; RAG integrations.</p></div>
+                        <div class="col-md-6"><h6><i class="fas fa-graduation-cap text-warning me-2"></i> Education</h6><p class="text-muted small">Bachelor of Computer Application (BCA), Mahatma Gandhi University, 7.7 CGPA.</p></div>
+                        <div class="col-md-6"><h6><i class="fas fa-envelope text-primary me-2"></i> Contact</h6><p class="text-muted small">Email: ajithgopikklm@gmail.com / me@agopi.in<br>Phone: (+971) 555-166-278</p></div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <a class="btn-glow btn-sm-custom" href="Ajith - CV.pdf" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Download CV</a>
+                        <a class="btn-ghost btn-sm-custom" href="https://www.linkedin.com/in/ahgopi/" target="_blank" rel="noopener"><i class="fab fa-linkedin"></i> LinkedIn</a>
+                        <button type="button" class="btn-ghost btn-sm-custom" data-bs-dismiss="modal" data-ai-prompt="Why should I hire Ajith?"><i class="fas fa-magic"></i> Ask the AI why hire him</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Contact & Footer -->
+    <!-- Contact / footer -->
     <footer id="contact">
         <div class="container text-center">
-            <h3 class="text-main mb-2">Let's Build Something <span class="ai-gradient-text">Great Together</span></h3>
-            <p class="text-muted mb-4">Open to exciting software engineering, AI architecture, and full-stack development roles.</p>
-            
-            <div class="d-flex justify-content-center gap-3 mb-4">
-                <a href="mailto:ajithgopikklm@gmail.com" class="social-icon-btn" title="Email Me"><i class="fas fa-envelope"></i></a>
-                <a href="https://github.com/ajithgopi" target="_blank" class="social-icon-btn" title="GitHub Profile"><i class="fab fa-github"></i></a>
-                <a href="https://www.linkedin.com/in/ahgopi/" target="_blank" class="social-icon-btn" title="LinkedIn Profile"><i class="fab fa-linkedin"></i></a>
-                <a href="https://stackoverflow.com/users/5321660/ajith-gopi" target="_blank" class="social-icon-btn" title="StackOverflow"><i class="fab fa-stack-overflow"></i></a>
-                <a href="https://www.youtube.com/distrostudios" target="_blank" class="social-icon-btn" title="YouTube Channel"><i class="fab fa-youtube"></i></a>
-                <a href="https://instagram.com/ajith_gp" target="_blank" class="social-icon-btn" title="Instagram"><i class="fab fa-instagram"></i></a>
+            <span class="section-tag centered"><i class="fas fa-paper-plane"></i> Get in touch</span>
+            <h3 class="big text-main">Let's build something <span class="grad-text-ai">great together</span></h3>
+            <p class="text-muted max-w-600 mx-auto">Open to senior software engineering, AI architecture and full-stack development roles. Or just ask the assistant — it knows the way to my inbox.</p>
+            <div class="contact-cards">
+                <a class="contact-card" href="mailto:ajithgopikklm@gmail.com"><i class="fas fa-envelope"></i><div><small>Email</small><span>ajithgopikklm@gmail.com</span></div></a>
+                <a class="contact-card" href="https://www.linkedin.com/in/ahgopi/" target="_blank" rel="noopener"><i class="fab fa-linkedin-in"></i><div><small>LinkedIn</small><span>linkedin.com/in/ahgopi</span></div></a>
+                <a class="contact-card" href="https://github.com/ajithgopi" target="_blank" rel="noopener"><i class="fab fa-github"></i><div><small>GitHub</small><span>github.com/ajithgopi</span></div></a>
+                <a class="contact-card" href="tel:+971555166278"><i class="fas fa-phone"></i><div><small>Phone · Dubai (GST)</small><span>(+971) 555-166-278</span></div></a>
             </div>
-
-            <div class="text-muted small">
-                &copy; <script>document.write(new Date().getFullYear())</script> Ajith Gopi. Designed & Built with AI Engineering Excellence. Hosted on GitHub Static Pages.
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                <a href="https://stackoverflow.com/users/5321660/ajith-gopi" target="_blank" rel="noopener" class="social-icon-btn" title="Stack Overflow"><i class="fab fa-stack-overflow"></i></a>
+                <a href="https://www.youtube.com/distrostudios" target="_blank" rel="noopener" class="social-icon-btn" title="YouTube"><i class="fab fa-youtube"></i></a>
+                <a href="https://instagram.com/ajith_gp" target="_blank" rel="noopener" class="social-icon-btn" title="Instagram"><i class="fab fa-instagram"></i></a>
+                <a href="https://twitter.com/ahgopi" target="_blank" rel="noopener" class="social-icon-btn" title="X / Twitter"><i class="fab fa-twitter"></i></a>
+            </div>
+            <div class="footer-bottom">
+                <span>&copy; <span id="year">2026</span> Ajith Gopi · Designed &amp; built with AI engineering excellence</span>
+                <span>Static site on GitHub Pages · AI assistant runs 100% client-side</span>
             </div>
         </div>
     </footer>
 
-    <!-- Floating AI Assistant FAB Button -->
-    <a href="#ai-assistant" class="floating-ai-btn" id="floating-ai-btn" title="Chat with Ajith's AI Assistant">
-        <div class="floating-ai-icon">
-            <i class="fas fa-robot"></i>
-        </div>
-        <span class="floating-ai-tooltip">Ask AI Assistant</span>
-        <span class="floating-ai-pulse"></span>
-    </a>
+    <!-- Floating assistant button + expand backdrop -->
+    <button type="button" class="floating-ai-btn" id="floating-ai-btn" title="Chat with Ajith's AI assistant"><span class="orb"></span> Ask AI <span class="pulse"></span></button>
+    <div class="ai-backdrop" id="ai-backdrop"></div>
 
-    <!-- JS Dependencies -->
-    <script src="js/jquery-3.5.1.min.js"></script>
+    <!-- JS -->
     <script src="js/bootstrap.bundle.min.js"></script>
-    <script src="js/neural-network.js"></script>
-    <script src="js/ai-assistant.js"></script>
-    <script src="js/main.js?v=20260802"></script>
+    <script src="js/ai-engine.js?v=20260911"></script>
+    <script src="js/visuals.js?v=20260911"></script>
+    <script src="js/ai-assistant.js?v=20260911"></script>
+    <script src="js/main.js?v=20260911"></script>
 </body>
 
 </html>
