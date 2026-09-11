@@ -824,7 +824,7 @@
 
     const VOICE_BLOCKED_KEY = 'ajith-ai-voice-unsupported';
     const SPEECH_LANG = 'en-US';
-    const speech = { input: false, tts: false, listening: false, speaking: false, voice: null, primed: false, seq: 0 };
+    const speech = { input: false, tts: false, listening: false, speaking: false, voice: null, natural: false, primed: false, seq: 0 };
 
     /* Every failure here used to be swallowed, so a blocked mic looked identical to a
        dead button. Each one now says what happened and what to do about it. */
@@ -884,14 +884,57 @@
             setTimeout(finish, 2500);
         });
     }
+    /* Picking a voice by name, as this used to, lands on whatever the list happens to
+       contain — and the first match was usually Samantha or Zira, both formant-era
+       voices that sound like a satnav from 2009. The API exposes no quality field, so
+       the naming conventions each platform uses are the only signal there is:
+
+         "Microsoft Ava Online (Natural)"  Azure neural, in Edge everywhere and Windows 11
+         "Ava (Premium)" / "(Enhanced)"    Apple's downloadable neural voices
+         "Google US English"               Chrome's network voice — dated, but not robotic
+         "Samantha", "Daniel"              Apple's built-in compact voices
+         "Microsoft David Desktop"         SAPI5, the oldest thing still shipping
+
+       Whatever scores highest wins, so a browser that has a neural voice always uses
+       it and one that doesn't still gets the best of what it has. */
+    const VOICE_TIERS = [
+        [/\(natural\)|\bneural\b/i, 100],
+        [/\(premium\)/i, 90],
+        [/\(enhanced\)/i, 80],
+        [/^google\s/i, 60],
+        [/\bdesktop\b/i, 5]
+    ];
+    /* Anything at this tier or above is worth trusting with a full paragraph and a
+       normal speaking rate; the older voices need more help than that. */
+    const VOICE_NATURAL_FROM = 80;
+    /* macOS ships two dozen novelty voices — "Bad News" sings, "Zarvox" is a robot by
+       design — and Linux falls back to eSpeak. None of them is ever the right answer. */
+    const VOICE_REJECT = /^(albert|agnes|bad news|bahh|bells|boing|bruce|bubbles|cellos|deranged|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|pipe organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|victoria|whisper|wobble|zarvox)\b|espeak|festival|pico/i;
+
+    function voiceScore(v) {
+        const name = v.name || '';
+        if (VOICE_REJECT.test(name)) return -1;
+        let score = 20;
+        for (const [re, s] of VOICE_TIERS) if (re.test(name)) { score = s; break; }
+        // The 2023-era Azure and Apple voices, which are a clear step up from their
+        // stablemates even inside the same tier.
+        if (/(ava|emma|andrew|brian|jenny|aria|michelle|zoe|serena|nicky|aaron)/i.test(name)) score += 6;
+        if (v.localService === false) score += 4;       // a network voice is a modern one
+        const lang = (v.lang || '').replace('_', '-');
+        if (/^en-US/i.test(lang)) score += 8;
+        else if (/^en-(GB|AU|IE|CA)/i.test(lang)) score += 4;
+        return score;
+    }
     function pickVoice(list) {
-        const pool = list.filter(v => /^en(-|$)/i.test(v.lang || ''));
+        const pool = list.filter(v => /^en(-|_|$)/i.test(v.lang || ''));
         const from = pool.length ? pool : list;
-        for (const name of ['Google US English', 'Samantha', 'Microsoft Aria', 'Microsoft Zira', 'Karen', 'Daniel']) {
-            const match = from.find(v => (v.name || '').indexOf(name) === 0);
-            if (match) return match;
+        let best = null, bestScore = -Infinity;
+        for (const v of from) {
+            const score = voiceScore(v);
+            if (score > bestScore) { best = v; bestScore = score; }
         }
-        return from.find(v => v.default) || from.find(v => v.localService) || from[0] || null;
+        if (best && bestScore >= 0) return best;
+        return from.find(v => v.default) || from[0] || null;   // every voice was rejected
     }
     /* Markdown read aloud is unbearable — asterisks become "star" and a URL is
        spelled out character by character. Strip it back to the sentence underneath,
@@ -913,6 +956,28 @@
             .replace(/[ \t]+/g, ' ')
             .replace(/\n{2,}/g, '\n')
             .trim();
+        /* Written shorthand reads badly out loud whatever the voice: "e.g." comes out
+           as "ee gee", "6+" as "six plus", and an em dash gets no pause at all where a
+           person would take one. Rewriting it as the words underneath is most of what
+           separates a sentence that sounds spoken from one that sounds parsed. */
+        s = s
+            .replace(/\be\.g\.,?\s*/gi, 'for example, ')
+            .replace(/\bi\.e\.,?\s*/gi, 'that is, ')
+            .replace(/\betc\.(?=\s+[A-Z"'])/g, 'and so on.')        // "etc." ending a sentence
+            .replace(/\betc\.?/gi, 'and so on')
+            .replace(/\bvs\.?(?=\s)/gi, 'versus')
+            .replace(/\bapprox\.?(?=\s)/gi, 'roughly')
+            .replace(/\s*[—–]\s*/g, ', ')                    // em and en dash -> a real pause
+            .replace(/\s*\(([^)]{1,70})\)\s*/g, ', $1, ')             // asides read as asides
+            .replace(/(\d)\s*\+/g, 'over $1')                         // "6+ years" -> "over 6 years"
+            .replace(/\b(\d{4})\s*[-–]\s*(\d{4})\b/g, '$1 to $2')
+            .replace(/\s*&\s*/g, ' and ')
+            .replace(/\b([a-z]{3,})\/([a-z]{3,})\b/gi, '$1 or $2')     // "React/Angular"
+            .replace(/\.js\b/gi, ' J S')                               // "Node.js" -> "Node J S"
+            .replace(/\s*,\s*,\s*/g, ', ')
+            .replace(/,\s*([.!?])/g, '$1')
+            .replace(/[ \t]+/g, ' ')
+            .trim();
         if (s.length > 900) {
             const cut = s.slice(0, 900);
             const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
@@ -921,22 +986,43 @@
         return s;
     }
     /* Chrome silently stops a single utterance after roughly fifteen seconds, so the
-       answer is queued as sentence-sized pieces instead of one long one. */
+       answer is queued in pieces rather than as one long one. Pieces cost something
+       though: every boundary is a hard reset of intonation, and on a network voice it
+       is an audible gap while the next clip is fetched. A neural voice earns a longer
+       run because it actually does something with the extra context; the compact ones
+       have nothing to lose, so they stay short enough to be safe. */
     function chunkForSpeech(text) {
+        const budget = speech.natural ? 320 : 200;
         const out = [];
         for (const para of text.split(/\n+/)) {
             let buf = '';
             for (const sentence of (para.match(/[^.!?…]+[.!?…]*\s*/g) || [para])) {
-                if (buf && (buf + sentence).length > 180) { out.push(buf.trim()); buf = ''; }
+                if (buf && (buf + sentence).length > budget) { out.push(buf.trim()); buf = ''; }
                 buf += sentence;
             }
             if (buf.trim()) out.push(buf.trim());
         }
-        return out.filter(Boolean);
+        // A fragment with no end punctuation is read with the pitch still rising, which
+        // is what makes a chunked answer sound like it was cut off mid-thought.
+        return out.filter(Boolean).map(part => /[.!?…,;:]$/.test(part) ? part : part + '.');
     }
+    /* Chrome abandons the queue if an utterance runs much past fifteen seconds, and a
+       pause/resume pair on a timer is the long-standing way to keep it alive. Safari
+       stutters when given the same treatment, so it is left alone. */
+    let keepAlive = null;
+    function startKeepAlive() {
+        if (keepAlive || !/Chrome\//.test(navigator.userAgent || '')) return;
+        keepAlive = setInterval(() => {
+            if (!speech.speaking) return;
+            try { speechSynthesis.pause(); speechSynthesis.resume(); } catch (e) { /* ignore */ }
+        }, 9000);
+    }
+    function stopKeepAlive() { if (keepAlive) { clearInterval(keepAlive); keepAlive = null; } }
+
     function setSpeaking(on) {
         speech.speaking = on;
         el.panel.classList.toggle('is-speaking', on);
+        if (on) startKeepAlive(); else stopKeepAlive();
         refreshTtsBtn();
     }
     function speak(md) {
@@ -952,7 +1038,11 @@
             const u = new SpeechSynthesisUtterance(part);
             if (speech.voice) u.voice = speech.voice;
             u.lang = (speech.voice && speech.voice.lang) || SPEECH_LANG;
-            u.rate = 1.02;
+            // A neural voice already paces itself, and pushing it faster is what makes
+            // it sound synthetic again. The compact voices run flat and hurried at 1.0,
+            // so they get eased off instead.
+            u.rate = speech.natural ? 1 : 0.95;
+            u.pitch = 1;
             if (i === parts.length - 1) u.onend = () => { if (seq === speech.seq) setSpeaking(false); };
             u.onerror = (e) => {
                 if (seq !== speech.seq) return;                       // a newer answer took over
@@ -1020,10 +1110,18 @@
             });
         }
         if (probeTTS()) {
-            loadVoices().then(list => {
+            const chooseVoice = list => {
                 speech.tts = list.length > 0;
                 speech.voice = speech.tts ? pickVoice(list) : null;
+                speech.natural = !!speech.voice && voiceScore(speech.voice) >= VOICE_NATURAL_FROM;
                 refreshTtsBtn();
+            };
+            loadVoices().then(chooseVoice);
+            // Edge publishes its neural voices well after the local ones, and a voice
+            // downloaded mid-visit shows up the same way, so keep taking the best offer.
+            speechSynthesis.addEventListener('voiceschanged', () => {
+                if (speech.speaking) return;                       // not mid-answer
+                chooseVoice(speechSynthesis.getVoices() || []);
             });
         }
         window.addEventListener('pagehide', stopSpeaking);     // speech outlives the page otherwise
