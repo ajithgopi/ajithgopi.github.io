@@ -848,7 +848,7 @@ section { position: relative; }
 .ai-trace__summary .chev { transition: transform 0.2s ease; font-size: 0.65rem; }
 details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
 .ai-trace__summary .meta { margin-left: auto; color: var(--text-dim); font-weight: 400; font-size: 0.76rem; white-space: nowrap; }
-@media (max-width: 575.98px) { .ai-trace__summary .meta { flex: 1 0 100%; margin-left: 0; padding-left: 1.5rem; } }
+@media (max-width: 575.98px) { .ai-trace__summary .meta { flex: 1 0 100%; margin-left: 0; padding-left: 1.5rem; white-space: normal; } }
 .ai-trace__steps { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 4px; }
 .ai-trace__step { display: flex; gap: 7px; align-items: flex-start; line-height: 1.45; animation: msgIn 0.3s var(--ease-out); }
 .ai-trace__step i { margin-top: 4px; font-size: 0.7rem; color: var(--primary); flex-shrink: 0; }
@@ -1007,7 +1007,7 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
     color: var(--text-dim);
     flex-shrink: 0;
 }
-.ai-panel__foot kbd { font-family: var(--font-mono); font-size: 1em; color: var(--text-muted); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; }
+.ai-panel__foot kbd { font-family: var(--font-mono); font-size: 1em; color: var(--text-muted); background: transparent; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; }
 
 /* expanded / fullscreen mode */
 .ai-panel.is-expanded {
@@ -1329,6 +1329,8 @@ footer .big { font-size: clamp(1.9rem, 5vw, 3.2rem); text-wrap: balance; font-we
 .contact-card small { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-dim); letter-spacing: 0.06em; text-transform: uppercase; }
 .contact-card span { font-weight: 600; font-size: 0.92rem; display: block; overflow-wrap: anywhere; }
 .footer-bottom { border-top: 1px solid var(--border); margin-top: 2.5rem; padding-top: 1.5rem; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 0.82rem; color: var(--text-dim); }
+/* keep the last footer line out from under the fixed "Ask AI" button */
+@media (max-width: 991.98px) { .footer-bottom { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); } }
 
 /* =============================================================
    Floating AI button

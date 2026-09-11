@@ -137,6 +137,24 @@
         } else fab.classList.add('is-visible');
     }
 
+    /* ---------- Responsive placeholders ---------- */
+    /* Long placeholders wrap (and get clipped) in narrow single-line fields,
+       so swap in a short variant below the mobile breakpoint. */
+    function initResponsivePlaceholders() {
+        const fields = $$('[data-placeholder-sm]'); if (!fields.length) return;
+        fields.forEach(f => { f.dataset.placeholderLg = f.placeholder; });
+        let small = null;
+        const apply = () => {
+            const isSmall = document.documentElement.clientWidth <= 575.98;
+            if (isSmall === small) return;
+            small = isSmall;
+            fields.forEach(f => { f.placeholder = isSmall ? f.dataset.placeholderSm : f.dataset.placeholderLg; });
+        };
+        apply();
+        window.addEventListener('resize', apply, { passive: true });
+        window.addEventListener('orientationchange', apply);
+    }
+
     /* ---------- Hero word stagger ---------- */
     function initHeroWords() {
         $$('.hero__title .word').forEach((w, i) => w.style.setProperty('--i', i));
@@ -144,7 +162,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        initTheme(); initHeroWords(); initTyping(); initSkillFilter(); initProjectFilter(); initNav(); initCounters(); initReveal(); initTimeline(); initMarquee(); initFab();
+        initTheme(); initHeroWords(); initTyping(); initSkillFilter(); initProjectFilter(); initNav(); initCounters(); initReveal(); initTimeline(); initMarquee(); initFab(); initResponsivePlaceholders();
         const y = $('#year'); if (y) y.textContent = new Date().getFullYear();
     });
 })();
