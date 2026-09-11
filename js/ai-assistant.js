@@ -806,7 +806,12 @@
             landing = true;
         }
         el.backdrop.classList.toggle('is-visible', on);
-        el.expand.innerHTML = on ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+        // Re-class the icon rather than replacing it. Swapping the node out detaches
+        // whatever the click landed on, and a detached target answers `closest` and
+        // `contains` with a flat no for the rest of that event.
+        const icon = el.expand.querySelector('i');
+        if (icon) icon.className = on ? 'fas fa-compress' : 'fas fa-expand';
+        else el.expand.innerHTML = on ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
         el.expand.title = on ? 'Exit full screen (Esc)' : 'Full screen';
         morph(from);
         scrollToBottom(true);
@@ -1143,21 +1148,34 @@
         el.expand.addEventListener('click', () => { const on = !expanded; setExpanded(on); if (on) el.input.focus(); });
         el.backdrop.addEventListener('click', () => setExpanded(false));
 
-        /* Focus the chat -> expand it; click anywhere else -> put it back.
-           Expanding reparents the panel to <body>, which would yank the element out
-           from under an in-flight mouse gesture (killing native focus and text
-           selection) if it ran on pointerdown. So pointer-driven expansion waits for
-           the `click`, and focusin only handles the keyboard/programmatic path.
-           The expand button is exempt either way, or its own click would be undone. */
-        let pointerDownInPanel = false, pointerActive = false;
-        document.addEventListener('pointerdown', (e) => { pointerActive = true; pointerDownInPanel = el.panel.contains(e.target); }, true);
+        /* Clicking the message input is what opens the chat — not a click anywhere in
+           the panel, which turned reading an answer or reaching for a header control
+           into a jump to full screen. Expansion waits for the `click` rather than the
+           pointerdown because it reparents the panel, and moving the element
+           mid-gesture breaks the browser's own focus and text selection.
+
+           What the collapse needs is read from the *pointerdown* target instead: a
+           handler that runs first can detach the node the click started on, and a
+           detached target reports itself outside everything. */
+        let pointerActive = false, downInPanel = false, downOnPrompt = false, downOnFab = false, tabbing = false;
+        document.addEventListener('pointerdown', (e) => {
+            const t = e.target;
+            pointerActive = true; tabbing = false;
+            downInPanel = el.panel.contains(t);
+            downOnPrompt = !!(t.closest && t.closest('[data-ai-prompt]'));
+            downOnFab = !!(el.fab && el.fab.contains(t));
+        }, true);
         document.addEventListener('pointerup', () => { pointerActive = false; }, true);
-        el.panel.addEventListener('focusin', (e) => { if (!pointerActive && !e.target.closest('#ai-expand-btn')) setExpanded(true); });
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('#ai-expand-btn') || e.target.closest('[data-ai-prompt]')) return;
-            // A drag that started in the panel and ended outside still counts as "in".
-            if (pointerDownInPanel || el.panel.contains(e.target)) { setExpanded(true); return; }
-            if (el.fab && el.fab.contains(e.target)) return;
+        document.addEventListener('keydown', (e) => { tabbing = e.key === 'Tab'; }, true);
+
+        el.input.addEventListener('click', () => setExpanded(true));
+        // Tab into the field and you get the same view. A focus() we made ourselves —
+        // clearing the chat, say — is not a request to expand.
+        el.input.addEventListener('focus', () => { if (!pointerActive && tabbing) setExpanded(true); });
+
+        // A drag that began in the panel and ended outside still counts as inside.
+        document.addEventListener('click', () => {
+            if (!expanded || downInPanel || downOnPrompt || downOnFab) return;
             setExpanded(false);
         });
         el.infoBtn.addEventListener('click', () => { el.info.hidden = !el.info.hidden; el.infoBtn.classList.toggle('is-active', !el.info.hidden); });
