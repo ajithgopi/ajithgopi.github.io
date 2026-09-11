@@ -1435,8 +1435,8 @@ footer .big { font-size: clamp(1.9rem, 5vw, 3.2rem); text-wrap: balance; font-we
 }
 
 /* ---------- Model download card ---------- */
-.ai-dl { max-width: 100% !important; width: 100%; }
-.ai-dl .chat-bubble.ai-dl__card { text-align: left; font-family: var(--font-body); font-size: 0.86rem; color: var(--text); border: 1px solid var(--border-highlight); border-style: solid; background: var(--bg-card-solid); padding: 0.9rem 1rem; border-radius: 14px; box-shadow: var(--shadow-sm); }
+.ai-dl, .ai-vdl { max-width: 100% !important; width: 100%; }
+.ai-dl .chat-bubble.ai-dl__card, .ai-vdl .chat-bubble.ai-dl__card { text-align: left; font-family: var(--font-body); font-size: 0.86rem; color: var(--text); border: 1px solid var(--border-highlight); border-style: solid; background: var(--bg-card-solid); padding: 0.9rem 1rem; border-radius: 14px; box-shadow: var(--shadow-sm); }
 .ai-dl__head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .ai-dl__head i { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--primary-glow); color: var(--primary); flex-shrink: 0; }
 .ai-dl__head b { font-weight: 600; flex: 1; }
