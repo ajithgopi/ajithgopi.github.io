@@ -1012,7 +1012,9 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
 /* expanded / fullscreen mode */
 .ai-panel.is-expanded {
     position: fixed;
-    inset: 16px;
+    /* Gutters, not edge-to-edge: clicking away is how you leave this view, so the
+       backdrop has to be a target you can actually hit. */
+    inset: clamp(16px, 4vh, 44px) clamp(16px, 6vw, 140px);
     z-index: 1500;
     height: auto;
     max-height: none;
@@ -1031,18 +1033,46 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
     z-index: 1400;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.36s var(--ease-out);
 }
 .ai-backdrop.is-visible { opacity: 1; pointer-events: auto; }
+/* Holds the hero slot open at the exact box the panel left behind (JS sets the
+   height), so nothing reflows underneath and the collapse has a target to land on. */
 .ai-panel-placeholder { display: none; }
-.ai-panel-placeholder.is-active { display: block; min-height: 520px; }
+.ai-panel-placeholder.is-active { display: block; }
+
+/* --- expand / collapse morph -------------------------------------------------
+   The panel is always laid out at its destination size and an inverted transform
+   fakes the starting box (FLIP), so only `transform` changes per frame. */
+.ai-panel.is-landing {
+    position: fixed;
+    z-index: 1500;
+    margin: 0;
+    min-height: 0;
+    max-height: none;
+}
+.ai-panel.is-morphing {
+    will-change: transform;
+    /* Re-blurring the page behind a moving 22px backdrop filter is what makes this
+       stutter; the panel is 94% opaque, so dropping it for the flight is invisible. */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+.ai-panel.is-morphing::before { animation-play-state: paused; }
+/* A brief dip hides the non-uniform stretch of the text mid-flight. */
+.ai-panel.is-morphing .ai-panel__body,
+.ai-panel.is-morphing .ai-panel__chips { animation: aiMorphIn 0.36s var(--ease-out) both; }
+@keyframes aiMorphIn { from { opacity: 0.4; } to { opacity: 1; } }
 
 @media (max-width: 991.98px) {
     .ai-panel { height: min(620px, 72vh); height: min(620px, 72dvh); min-height: 460px; }
-    .ai-panel.is-expanded { inset: 0; border-radius: 0; }
+    .ai-panel.is-expanded { inset: clamp(12px, 3vh, 28px) clamp(12px, 3vw, 36px); }
     .ai-panel.is-expanded .ai-panel__body { padding: 1rem; }
 }
 @media (max-width: 575.98px) {
+    /* A sheet rather than a dialog — but it still stops short of the top edge, so
+       there is a strip of backdrop to tap when you want out. */
+    .ai-panel.is-expanded { inset: 52px 0 0; border-radius: var(--r-lg) var(--r-lg) 0 0; }
     .ai-panel { border-radius: var(--r-lg); }
     .ai-panel__header { padding: 0.7rem 0.75rem; gap: 10px; }
     .ai-orb { width: 38px; height: 38px; }
@@ -1377,7 +1407,7 @@ footer .big { font-size: clamp(1.9rem, 5vw, 3.2rem); text-wrap: balance; font-we
 [id] { scroll-margin-top: 90px; }
 .hero__panel-col { animation: panelIn 0.9s var(--ease-out) 0.2s both; }
 @keyframes panelIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
-.hero__panel-col:has(.ai-panel.is-expanded) { animation: none; transform: none; }
+.hero__panel-col:has(.ai-panel.is-expanded), .hero__panel-col:has(.ai-panel.is-landing) { animation: none; transform: none; }
 .chat-answer:empty { display: none; }
 .chat-extra:empty { display: none; }
 .ai-panel__body .chat-msg.system .chat-bubble a { color: var(--primary); }

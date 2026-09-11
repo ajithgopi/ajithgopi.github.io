@@ -682,20 +682,113 @@
     }
 
     /* ---------------- expand mode ---------------- */
+    /* Focusing the chat expands it to full screen; clicking away puts it back.
+       The two states have very different boxes, so the transition is a FLIP:
+       the panel is always laid out at its *destination* size, then an inverted
+       transform fakes the starting box and animates away. Only `transform`
+       changes per frame, so the browser composites instead of re-laying out
+       a scrolling message list behind two backdrop filters. */
+    const MORPH_MS = 360;
+    const MORPH_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+    let expanded = false, landing = false, morphTimer = null;
+
+    function reducedMotion() {
+        try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+    }
+
+    /* Body scroll lock, minus the sideways jolt of a disappearing scrollbar. */
+    function lockScroll(on) {
+        if (on) {
+            const gap = window.innerWidth - document.documentElement.clientWidth;
+            document.body.style.paddingRight = gap > 0 ? gap + 'px' : '';
+            document.body.classList.add('ai-expanded');
+        } else {
+            document.body.classList.remove('ai-expanded');
+            document.body.style.paddingRight = '';
+        }
+    }
+
+    function setPanelBox(r) {
+        const st = el.panel.style;
+        st.top = r.top + 'px'; st.left = r.left + 'px';
+        st.width = r.width + 'px'; st.height = r.height + 'px';
+    }
+
+    /* Commit whatever the in-flight morph was heading towards, immediately. */
+    function endMorph() {
+        clearTimeout(morphTimer); morphTimer = null;
+        const st = el.panel.style;
+        // Drop the transform with transitions off, so a morph that was cut short (or
+        // frozen in a background tab) snaps to its destination instead of easing back
+        // through the panel's default 0.5s transform transition.
+        st.transition = 'none';
+        st.transform = 'none';
+        void el.panel.offsetWidth;
+        st.transition = ''; st.transform = ''; st.transformOrigin = '';
+        el.panel.classList.remove('is-morphing');
+        if (!landing) return;
+        landing = false;
+        el.panel.classList.remove('is-landing');
+        st.top = st.left = st.width = st.height = '';
+        el.placeholder.insertAdjacentElement('afterend', el.panel);
+        el.placeholder.classList.remove('is-active');
+        el.placeholder.style.height = '';
+    }
+
+    function morph(from) {
+        if (reducedMotion()) { endMorph(); return; }
+        const to = el.panel.getBoundingClientRect();
+        if (!to.width || !to.height || !from.width) { endMorph(); return; }
+        // Panel scrolled out of sight (expanded from the floating button): a flight
+        // across two screens is noise, so grow gently in place instead.
+        if (from.bottom < 40 || from.top > window.innerHeight - 40) {
+            from = { left: to.left + to.width * 0.04, top: to.top + to.height * 0.05, width: to.width * 0.92, height: to.height * 0.9 };
+        }
+        const dx = from.left - to.left, dy = from.top - to.top;
+        const sx = from.width / to.width, sy = from.height / to.height;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) { endMorph(); return; }
+        const st = el.panel.style;
+        el.panel.classList.add('is-morphing');
+        st.transition = 'none';
+        st.transformOrigin = 'top left';
+        st.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy})`;
+        void el.panel.offsetWidth;                     // paint the inverted frame first
+        st.transition = `transform ${MORPH_MS}ms ${MORPH_EASE}`;
+        st.transform = 'translate3d(0, 0, 0) scale(1, 1)';
+        morphTimer = setTimeout(endMorph, MORPH_MS + 60);
+    }
+
     function setExpanded(on) {
-        // Reparent to <body> so the fixed panel escapes the hero's stacking context
-        if (on && el.panel.parentElement !== document.body) document.body.appendChild(el.panel);
-        else if (!on && el.panel.parentElement === document.body) el.placeholder.insertAdjacentElement('afterend', el.panel);
-        el.panel.classList.toggle('is-expanded', on);
+        on = !!on;
+        if (on === expanded) return;
+        const from = el.panel.getBoundingClientRect();   // includes any in-flight transform
+        endMorph();
+        expanded = on;
+
+        if (on) {
+            // Freeze the hero slot at exactly the box the panel is vacating. Read the
+            // layout height, not `from` — if this interrupted a collapse, `from` is a
+            // half-animated box and would leave the slot the wrong size.
+            el.placeholder.style.height = el.panel.offsetHeight + 'px';
+            el.placeholder.classList.add('is-active');
+            // Reparent to <body> so the fixed panel escapes the hero's stacking context
+            document.body.appendChild(el.panel);
+            el.panel.classList.add('is-expanded');
+            lockScroll(true);
+        } else {
+            lockScroll(false);                            // restore the scrollbar before measuring
+            const slot = el.placeholder.getBoundingClientRect();
+            el.panel.classList.remove('is-expanded');
+            el.panel.classList.add('is-landing');         // stays fixed + unclipped until it arrives
+            setPanelBox(slot);
+            landing = true;
+        }
         el.backdrop.classList.toggle('is-visible', on);
-        el.placeholder.classList.toggle('is-active', on);
-        document.body.classList.toggle('ai-expanded', on);
         el.expand.innerHTML = on ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
         el.expand.title = on ? 'Exit full screen (Esc)' : 'Full screen';
-        if (on) setTimeout(() => el.input.focus(), 50);
+        morph(from);
         scrollToBottom(true);
     }
-    function panelInView() { const r = el.panel.getBoundingClientRect(); return r.top < window.innerHeight * 0.7 && r.bottom > window.innerHeight * 0.3; }
 
     /* ---------------- voice ---------------- */
     /* Every failure here used to be swallowed, so a blocked mic looked identical to a
@@ -786,28 +879,46 @@
 
         // events
         el.form.addEventListener('submit', (e) => { e.preventDefault(); if (busy) { aborter && aborter.abort(); return; } send(el.input.value); });
-        el.input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el.form.requestSubmit ? el.form.requestSubmit() : el.form.dispatchEvent(new Event('submit')); } if (e.key === 'Escape' && el.panel.classList.contains('is-expanded')) setExpanded(false); });
+        el.input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el.form.requestSubmit ? el.form.requestSubmit() : el.form.dispatchEvent(new Event('submit')); } if (e.key === 'Escape' && expanded) { e.stopPropagation(); setExpanded(false); } });
         el.input.addEventListener('input', autoGrow);
         el.clear.addEventListener('click', clearChat);
-        el.expand.addEventListener('click', () => setExpanded(!el.panel.classList.contains('is-expanded')));
+        el.expand.addEventListener('click', () => { const on = !expanded; setExpanded(on); if (on) el.input.focus(); });
         el.backdrop.addEventListener('click', () => setExpanded(false));
+
+        /* Focus the chat -> expand it; click anywhere else -> put it back.
+           Expanding reparents the panel to <body>, which would yank the element out
+           from under an in-flight mouse gesture (killing native focus and text
+           selection) if it ran on pointerdown. So pointer-driven expansion waits for
+           the `click`, and focusin only handles the keyboard/programmatic path.
+           The expand button is exempt either way, or its own click would be undone. */
+        let pointerDownInPanel = false, pointerActive = false;
+        document.addEventListener('pointerdown', (e) => { pointerActive = true; pointerDownInPanel = el.panel.contains(e.target); }, true);
+        document.addEventListener('pointerup', () => { pointerActive = false; }, true);
+        el.panel.addEventListener('focusin', (e) => { if (!pointerActive && !e.target.closest('#ai-expand-btn')) setExpanded(true); });
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#ai-expand-btn') || e.target.closest('[data-ai-prompt]')) return;
+            // A drag that started in the panel and ended outside still counts as "in".
+            if (pointerDownInPanel || el.panel.contains(e.target)) { setExpanded(true); return; }
+            if (el.fab && el.fab.contains(e.target)) return;
+            setExpanded(false);
+        });
         el.infoBtn.addEventListener('click', () => { el.info.hidden = !el.info.hidden; el.infoBtn.classList.toggle('is-active', !el.info.hidden); });
         el.engineBtn.addEventListener('click', (e) => { e.stopPropagation(); el.engine.classList.toggle('is-open'); });
         document.addEventListener('click', (e) => { if (!el.engine.contains(e.target)) el.engine.classList.remove('is-open'); });
         document.addEventListener('keydown', (e) => {
             const tag = (e.target.tagName || '').toLowerCase();
-            if (e.key === '/' && tag !== 'input' && tag !== 'textarea' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); if (!panelInView()) el.panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.input.focus(); }
-            if (e.key === 'Escape' && el.panel.classList.contains('is-expanded')) setExpanded(false);
+            if (e.key === '/' && tag !== 'input' && tag !== 'textarea' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); setExpanded(true); el.input.focus(); }
+            if (e.key === 'Escape' && expanded) setExpanded(false);
         });
-        if (el.fab) el.fab.addEventListener('click', (e) => { e.preventDefault(); if (panelInView()) { el.input.focus(); } else { setExpanded(true); } });
-        document.querySelectorAll('[data-ai-prompt]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); el.panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => send(b.dataset.aiPrompt), 400); }));
+        if (el.fab) el.fab.addEventListener('click', (e) => { e.preventDefault(); setExpanded(true); el.input.focus(); });
+        document.querySelectorAll('[data-ai-prompt]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); setExpanded(true); setTimeout(() => send(b.dataset.aiPrompt), 260); }));
         initVoice();
 
         // deep link: ?ask=your+question sends a prompt on load (shareable)
         try { const q = new URLSearchParams(location.search).get('ask'); if (q) setTimeout(() => send(q), 600); } catch (e) { /* ignore */ }
 
         // public hooks
-        window.sendAIPrompt = (t) => { el.panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => send(t), 300); };
+        window.sendAIPrompt = (t) => { setExpanded(true); setTimeout(() => send(t), 260); };
         window.clearAIChat = clearChat;
         window.AjithAIChat = { switchEngine, loadWebLLM, send };
     }
