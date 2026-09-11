@@ -997,7 +997,13 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
 .ai-mic-btn { width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px; }
 .ai-mic-btn.is-listening { color: #ef4444; border-color: rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.12); animation: pulseSoft 1s infinite; }
 @keyframes pulseSoft { 50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.15); } }
-.ai-mic-btn[hidden] { display: none; }
+.ai-mic-btn[hidden], .ai-tts-btn[hidden] { display: none; }
+.ai-tts-btn { width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px; }
+.ai-tts-btn.is-active { color: var(--primary); border-color: var(--border-highlight); background: var(--primary-glow); }
+.ai-tts-btn.is-speaking { color: #22c55e; border-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.12); animation: pulseSpeak 1.4s infinite; }
+@keyframes pulseSpeak { 50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.15); } }
+/* The orb keeps breathing while the answer is being read out. */
+.ai-panel.is-speaking .ai-orb { animation-duration: 1.4s; }
 .ai-panel__foot {
     display: flex;
     justify-content: space-between;
@@ -1057,7 +1063,10 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
     .ai-engine { position: static; }
     .ai-engine__menu { left: 8px; right: 8px; width: auto; max-width: none; top: calc(100% + 4px); }
     .ai-panel__chips { padding: 0.5rem 0.8rem; }
-    .ai-panel__input { padding: 0.6rem 0.6rem 0.6rem 0.75rem; }
+    .ai-panel__input { padding: 0.6rem 0.6rem 0.6rem 0.75rem; gap: 6px; }
+    /* Mic + speaker + send beside the field is tight at this width, so the buttons
+       give up the room rather than the textarea. */
+    .ai-mic-btn, .ai-tts-btn, .ai-send-btn { width: 40px; height: 40px; border-radius: 12px; font-size: 0.9rem; }
 }
 
 /* =============================================================

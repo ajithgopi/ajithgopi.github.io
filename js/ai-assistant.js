@@ -42,7 +42,10 @@
     let webllm = { engine: null, model: null }, webllmModule = null;
     let download = { seq: 0, active: false, promise: null, model: null, card: null };
     let onInitProgress = null;
-    const INPUT_PLACEHOLDER = 'Ask about experience, skills, projects… (try /help)';
+    /* The narrow layout puts three buttons beside the field, and the long prompt then
+       wraps to three clipped lines — so it gets a shorter one. */
+    const NARROW = window.matchMedia('(max-width: 575.98px)');
+    const inputPlaceholder = () => NARROW.matches ? 'Ask about Ajith…' : 'Ask about experience, skills, projects… (try /help)';
     let el = {};
 
     /* ---------------- helpers ---------------- */
@@ -330,7 +333,7 @@
         el.input.disabled = on; el.send.disabled = on; el.mic.disabled = on; el.clear.disabled = on;
         el.chips.classList.toggle('is-disabled', on);
         el.panel.classList.toggle('is-loading-model', on);
-        el.input.placeholder = on ? (placeholder || 'Downloading model…') : INPUT_PLACEHOLDER;
+        el.input.placeholder = on ? (placeholder || 'Downloading model…') : inputPlaceholder();
         document.querySelectorAll('[data-ai-prompt]').forEach(b => b.disabled = on);
     }
     function removeDownloadCards() {
@@ -525,6 +528,7 @@
         opts = opts || {};
         const text = String(rawText || '').trim();
         if (!text || busy) return;
+        stopSpeaking();                       // a new question always outranks the previous answer
         if (download.active && settings.engine === 'webllm') { addSystemNote('⏳ The model is still downloading — chat resumes automatically when it\'s ready.'); return; }
         if (/^\/(clear|reset)$/i.test(text)) { clearChat(); return; }
         if (/^\/engine\b/i.test(text)) { el.engine.classList.add('is-open'); el.input.value = ''; return; }
@@ -665,9 +669,12 @@
         setChips(res.followups && res.followups.length ? res.followups : DEFAULT_CHIPS);
         scrollToBottom(true);
         if (window.AjithVisuals) window.AjithVisuals.burst(6);
+        // Spoken question in, spoken answer out — a typed question stays silent.
+        if (opts.voice && !signal.aborted) speak(finalText);
     }
 
     function clearChat() {
+        stopSpeaking();
         history = []; saveJSON(STORE_KEY, history); engine.reset();
         el.body.innerHTML = '';
         welcome();
@@ -697,35 +704,249 @@
     }
     function panelInView() { const r = el.panel.getBoundingClientRect(); return r.top < window.innerHeight * 0.7 && r.bottom > window.innerHeight * 0.3; }
 
-    /* ---------------- voice ---------------- */
+    /* ---------------- speech: input + output ---------------- */
+    /* Voice is a progressive enhancement, and plenty of real devices advertise it
+       and then fail on first use — Android WebView and the in-app browsers built
+       on it ship the constructor with no speech service behind it, and anything
+       served over plain http is refused outright. Support is therefore probed
+       before the button is ever shown, and a fatal failure retires it for good.
+
+       Output is deliberately tied to input: an answer is spoken only when the
+       question was asked out loud, so a typed conversation stays silent. */
+
+    const VOICE_BLOCKED_KEY = 'ajith-ai-voice-unsupported';
+    const SPEECH_LANG = 'en-US';
+    const speech = { input: false, tts: false, listening: false, speaking: false, voice: null, primed: false, seq: 0 };
+
     /* Every failure here used to be swallowed, so a blocked mic looked identical to a
        dead button. Each one now says what happened and what to do about it. */
     const VOICE_ERRORS = {
         'not-allowed': 'Microphone access is blocked for this site. Allow it from the icon in your browser\'s address bar, then try again.',
-        'service-not-allowed': 'Your browser blocked its speech service. Check its microphone and privacy settings.',
-        'audio-capture': 'No microphone was found. Connect one, or pick one in your system sound settings.',
+        'service-not-allowed': 'Your browser has no speech service available, so voice input has been turned off here. Typing works exactly the same.',
+        'audio-capture': 'No microphone was found, so voice input has been turned off. Connect one and reload to use it.',
         'network': 'Voice input needs a network connection — your browser transcribes speech through its own service, not on this page.',
         'no-speech': 'I didn\'t catch anything — try again and start speaking once the mic turns red.',
+        'language-not-supported': 'Your browser can\'t transcribe English here, so voice input has been turned off.',
         'aborted': null  // user cancelled on purpose
     };
-    function initVoice() {
+    /* Errors that mean "this browser cannot do speech at all" rather than "not this
+       time". After one of these the mic is hidden and stays hidden on return visits. */
+    const VOICE_FATAL = ['service-not-allowed', 'audio-capture', 'language-not-supported'];
+
+    function voiceBlocked() { try { return !!localStorage.getItem(VOICE_BLOCKED_KEY); } catch (e) { return false; } }
+    function blockVoice() { try { localStorage.setItem(VOICE_BLOCKED_KEY, '1'); } catch (e) { /* private mode */ } }
+
+    /* Synchronous half of the probe — everything knowable before touching hardware. */
+    function probeVoiceInput() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) { el.mic.hidden = true; return; }
-        let rec = null, listening = false, cancelled = false, heard = '';
+        if (!SR) return 'no SpeechRecognition API';
+        if (window.isSecureContext === false) return 'insecure origin';
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'no microphone API';
+        if (voiceBlocked()) return 'failed on this device before';
+        // `; wv)` is the Android WebView marker; the rest are in-app browsers built on it.
+        if (/;\s*wv\)|\bFB(AN|AV|_IAB)|\bInstagram\b|\bLine\/|\bMicroMessenger\b/i.test(navigator.userAgent || '')) return 'in-app browser';
+        try { const probe = new SR(); if (!probe || typeof probe.start !== 'function') return 'unusable SpeechRecognition'; }
+        catch (e) { return 'SpeechRecognition could not be created'; }
+        return null;
+    }
+    /* Asynchronous half: is there actually an input device? Before permission is
+       granted labels are blank but kinds are still listed, so an empty list means the
+       browser is withholding everything rather than that the machine has no mic. */
+    async function hasMicrophone() {
+        try {
+            if (!navigator.mediaDevices.enumerateDevices) return true;
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            return !devices.length || devices.some(d => d.kind === 'audioinput');
+        } catch (e) { return true; }
+    }
+
+    /* ----- speech synthesis ----- */
+    function probeTTS() {
+        return !!(window.speechSynthesis && typeof window.SpeechSynthesisUtterance === 'function' && typeof speechSynthesis.speak === 'function');
+    }
+    /* getVoices() is populated asynchronously in Chrome, so the first call is often
+       empty; a browser that still has none after voiceschanged has no synthesiser. */
+    function loadVoices() {
+        return new Promise(resolve => {
+            const have = speechSynthesis.getVoices();
+            if (have && have.length) return resolve(have);
+            let done = false;
+            const finish = () => { if (done) return; done = true; resolve(speechSynthesis.getVoices() || []); };
+            speechSynthesis.addEventListener('voiceschanged', finish, { once: true });
+            setTimeout(finish, 2500);
+        });
+    }
+    function pickVoice(list) {
+        const pool = list.filter(v => /^en(-|$)/i.test(v.lang || ''));
+        const from = pool.length ? pool : list;
+        for (const name of ['Google US English', 'Samantha', 'Microsoft Aria', 'Microsoft Zira', 'Karen', 'Daniel']) {
+            const match = from.find(v => (v.name || '').indexOf(name) === 0);
+            if (match) return match;
+        }
+        return from.find(v => v.default) || from.find(v => v.localService) || from[0] || null;
+    }
+    /* Markdown read aloud is unbearable — asterisks become "star" and a URL is
+       spelled out character by character. Strip it back to the sentence underneath,
+       and cap the length so a long answer doesn't become a three-minute monologue. */
+    function speakableText(md) {
+        let s = String(md || '')
+            .replace(/```[\s\S]*?```/g, ' ')
+            .replace(/`([^`]*)`/g, '$1')
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+            .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+            .replace(/https?:\/\/\S+/g, 'the link on screen')
+            .replace(/^\s*\|.*\|\s*$/gm, ' ')
+            .replace(/^::bar\s+\d+\s*$/gm, '')                     // skill-bar directive, not prose
+            .replace(/^\s{0,3}#{1,6}\s*/gm, '')
+            .replace(/^\s*(?:[-*•]|\d+\.)\s+/gm, '')
+            .replace(/\*\*|__|~~|\*|_/g, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{2BFF}\u{FE0F}]/gu, '')
+            .replace(/[ \t]+/g, ' ')
+            .replace(/\n{2,}/g, '\n')
+            .trim();
+        if (s.length > 900) {
+            const cut = s.slice(0, 900);
+            const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+            s = (stop > 500 ? cut.slice(0, stop + 1) : cut.replace(/\s+\S*$/, '') + '.') + ' The rest is on screen.';
+        }
+        return s;
+    }
+    /* Chrome silently stops a single utterance after roughly fifteen seconds, so the
+       answer is queued as sentence-sized pieces instead of one long one. */
+    function chunkForSpeech(text) {
+        const out = [];
+        for (const para of text.split(/\n+/)) {
+            let buf = '';
+            for (const sentence of (para.match(/[^.!?…]+[.!?…]*\s*/g) || [para])) {
+                if (buf && (buf + sentence).length > 180) { out.push(buf.trim()); buf = ''; }
+                buf += sentence;
+            }
+            if (buf.trim()) out.push(buf.trim());
+        }
+        return out.filter(Boolean);
+    }
+    function setSpeaking(on) {
+        speech.speaking = on;
+        el.panel.classList.toggle('is-speaking', on);
+        refreshTtsBtn();
+    }
+    function speak(md) {
+        if (!speech.tts || !settings.speak) return;
+        const text = speakableText(md);
+        if (!text) return;
+        stopSpeaking();
+        const seq = ++speech.seq;
+        const parts = chunkForSpeech(text);
+        if (!parts.length) return;
+        setSpeaking(true);
+        parts.forEach((part, i) => {
+            const u = new SpeechSynthesisUtterance(part);
+            if (speech.voice) u.voice = speech.voice;
+            u.lang = (speech.voice && speech.voice.lang) || SPEECH_LANG;
+            u.rate = 1.02;
+            if (i === parts.length - 1) u.onend = () => { if (seq === speech.seq) setSpeaking(false); };
+            u.onerror = (e) => {
+                if (seq !== speech.seq) return;                       // a newer answer took over
+                const err = e && e.error;
+                setSpeaking(false);
+                if (err === 'interrupted' || err === 'canceled') return;
+                speech.tts = false;                                   // synthesiser is there but not working
+                refreshTtsBtn();
+            };
+            speechSynthesis.speak(u);
+        });
+    }
+    function stopSpeaking() {
+        if (!speech.tts) return;
+        speech.seq++;
+        try { speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+        setSpeaking(false);
+    }
+    /* Safari and Chrome on mobile only let speech begin inside a user gesture, and the
+       answer arrives seconds after the tap. A silent utterance on the mic press unlocks
+       the synthesiser so the real one is allowed through later. */
+    function primeSpeech() {
+        if (!speech.tts || !settings.speak || speech.primed) return;
+        try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); speech.primed = true; }
+        catch (e) { /* ignore */ }
+    }
+
+    /* ----- controls ----- */
+    function refreshTtsBtn() {
+        if (!el.tts) return;
+        // The toggle only ever governs replies to spoken questions, so it is pointless
+        // — and confusing — on a device that cannot listen in the first place.
+        const show = speech.tts && speech.input;
+        el.tts.hidden = !show;
+        if (!show) return;
+        const on = !!settings.speak;
+        el.tts.classList.toggle('is-active', on && !speech.speaking);
+        el.tts.classList.toggle('is-speaking', speech.speaking);
+        el.tts.setAttribute('aria-pressed', on ? 'true' : 'false');
+        el.tts.innerHTML = `<i class="fas ${speech.speaking ? 'fa-stop' : on ? 'fa-volume-up' : 'fa-volume-mute'}"></i>`;
+        const label = speech.speaking ? 'Stop speaking'
+            : on ? 'Answers are read aloud when you ask by voice — click to mute'
+                : 'Spoken answers are muted — click to unmute';
+        el.tts.title = label;
+        el.tts.setAttribute('aria-label', label);
+    }
+    function setVoiceInputEnabled(on, why) {
+        speech.input = on;
+        el.mic.hidden = !on;
+        if (!on && why) console.info('[AjithAI] voice input unavailable:', why);
+        refreshTtsBtn();
+    }
+
+    function initSpeech() {
+        el.mic.hidden = true;                                  // stay hidden until the probe passes
+        if (el.tts) {
+            el.tts.hidden = true;
+            el.tts.addEventListener('click', () => {
+                if (speech.speaking) { stopSpeaking(); return; }
+                settings.speak = !settings.speak;
+                saveJSON(SETTINGS_KEY, settings);
+                refreshTtsBtn();
+                primeSpeech();
+            });
+        }
+        if (probeTTS()) {
+            loadVoices().then(list => {
+                speech.tts = list.length > 0;
+                speech.voice = speech.tts ? pickVoice(list) : null;
+                refreshTtsBtn();
+            });
+        }
+        window.addEventListener('pagehide', stopSpeaking);     // speech outlives the page otherwise
+
+        const why = probeVoiceInput();
+        if (why) { setVoiceInputEnabled(false, why); return; }
+        hasMicrophone().then(found => {
+            if (!found) { setVoiceInputEnabled(false, 'no audio input device'); return; }
+            setVoiceInputEnabled(true);
+            wireMic();
+        });
+    }
+
+    function wireMic() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let rec = null, cancelled = false, heard = '';
         function setListening(on) {
-            listening = on;
+            speech.listening = on;
             el.mic.classList.toggle('is-listening', on);
             el.mic.title = on ? 'Stop listening' : 'Voice input';
             if (on) el.input.placeholder = 'Listening…';
-            else if (!el.input.disabled) el.input.placeholder = INPUT_PLACEHOLDER;
+            else if (!el.input.disabled) el.input.placeholder = inputPlaceholder();
         }
         el.mic.addEventListener('click', () => {
-            if (listening) { cancelled = true; try { rec.stop(); } catch (e) { /* ignore */ } return; }
+            if (speech.listening) { cancelled = true; try { rec.stop(); } catch (e) { /* ignore */ } return; }
             if (busy || el.input.disabled) return;
+            stopSpeaking();                                    // never listen over our own voice
+            primeSpeech();
             cancelled = false; heard = '';
             rec = new SR();
-            rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = false;
-            rec.onstart = () => setListening(true);          // only turn red once actually live
+            rec.lang = SPEECH_LANG; rec.interimResults = true; rec.continuous = false;
+            rec.onstart = () => setListening(true);            // only turn red once actually live
             rec.onresult = (e) => {
                 let t = ''; for (const r of e.results) t += r[0].transcript;
                 heard = t.trim(); el.input.value = t; autoGrow();
@@ -734,14 +955,17 @@
                 const msg = VOICE_ERRORS[e.error];
                 if (msg) addSystemNote(`<i class="fas fa-microphone-slash"></i> ${msg}`);
                 else if (!cancelled && e.error) addSystemNote(`<i class="fas fa-microphone-slash"></i> Voice input failed (${escapeHtml(e.error)}).`);
-                cancelled = true;                             // never auto-send after a failure
+                cancelled = true;                              // never auto-send after a failure
+                if (VOICE_FATAL.indexOf(e.error) >= 0) { blockVoice(); setVoiceInputEnabled(false, e.error); }
             };
             // Sending on end (not on the final result) keeps a deliberate stop from firing one off.
-            rec.onend = () => { setListening(false); if (!cancelled && heard) send(heard); };
+            // `voice: true` is what earns the answer a spoken reply.
+            rec.onend = () => { setListening(false); if (!cancelled && heard) send(heard, { voice: true }); };
             try { rec.start(); }
             catch (err) { setListening(false); addSystemNote(`<i class="fas fa-microphone-slash"></i> Couldn't start voice input (${escapeHtml(err.message || err.name || String(err))}).`); }
         });
     }
+
     function autoGrow() {
         el.input.style.height = 'auto';
         const h = el.input.scrollHeight;
@@ -755,11 +979,11 @@
             panel: $('ai-assistant'), body: $('ai-chat-body'), input: $('ai-chat-input'), send: $('ai-send-btn'), form: $('ai-form'),
             chips: $('ai-chips'), status: $('ai-status'), clear: $('ai-clear-btn'), expand: $('ai-expand-btn'), info: $('ai-info'), infoBtn: $('ai-info-btn'),
             engine: $('ai-engine'), engineBtn: $('ai-engine-btn'), engineMenu: $('ai-engine-menu'), progress: $('ai-progress'), progressBar: $('ai-progress-bar'),
-            mic: $('ai-mic-btn'), backdrop: $('ai-backdrop'), placeholder: $('ai-panel-placeholder'), fab: $('floating-ai-btn')
+            mic: $('ai-mic-btn'), tts: $('ai-tts-btn'), backdrop: $('ai-backdrop'), placeholder: $('ai-panel-placeholder'), fab: $('floating-ai-btn')
         };
         if (!el.panel || !el.body || !window.AjithAI) return;
         engine = AjithAI.createEngine();
-        settings = Object.assign({ engine: 'builtin', webllmModel: WEBLLM_MODELS[0].id }, loadJSON(SETTINGS_KEY, {}));
+        settings = Object.assign({ engine: 'builtin', webllmModel: WEBLLM_MODELS[0].id, speak: true }, loadJSON(SETTINGS_KEY, {}));
         try { const qe = new URLSearchParams(location.search).get('engine'); if (qe && ENGINE_META[qe]) settings.engine = qe; } catch (e) { /* ignore */ }
         if (!ENGINE_META[settings.engine]) settings.engine = 'builtin';
         if (!WEBLLM_MODELS.some(m => m.id === settings.webllmModel)) settings.webllmModel = WEBLLM_MODELS[0].id;
@@ -801,7 +1025,11 @@
         });
         if (el.fab) el.fab.addEventListener('click', (e) => { e.preventDefault(); if (panelInView()) { el.input.focus(); } else { setExpanded(true); } });
         document.querySelectorAll('[data-ai-prompt]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); el.panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => send(b.dataset.aiPrompt), 400); }));
-        initVoice();
+        initSpeech();
+        el.input.placeholder = inputPlaceholder();
+        const onBreakpoint = () => { if (!el.input.disabled && !speech.listening) el.input.placeholder = inputPlaceholder(); };
+        if (NARROW.addEventListener) NARROW.addEventListener('change', onBreakpoint);
+        else if (NARROW.addListener) NARROW.addListener(onBreakpoint);   // Safari < 14
 
         // deep link: ?ask=your+question sends a prompt on load (shareable)
         try { const q = new URLSearchParams(location.search).get('ask'); if (q) setTimeout(() => send(q), 600); } catch (e) { /* ignore */ }
