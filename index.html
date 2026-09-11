@@ -34,7 +34,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/fontawesome.min.css"/>
-    <link rel="stylesheet" href="css/style.css?v=20260911">
+    <link rel="stylesheet" href="css/style.css?v=20260916">
     <script>
         // Apply saved theme before first paint to avoid a flash
         (function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('portfolio-theme');if(!t){var h=new Date().getHours();t=(h>=6&&h<18)?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
@@ -58,13 +58,18 @@
             <a class="navbar-brand" href="#about">
                 <span class="brand-mark">AG</span> Ajith Gopi
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <i class="fas fa-bars"></i>
-            </button>
+            <div class="nav-quick">
+                <button class="btn-ghost icon-btn theme-toggle-btn" type="button" id="theme-toggle" title="Switch theme" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon" id="theme-icon"></i>
+                </button>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-lg-center gap-1">
                     <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#ai-hub">AI Engineering</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#ai-hub">AI work</a></li>
                     <li class="nav-item"><a class="nav-link" href="#skills">Skills</a></li>
                     <li class="nav-item"><a class="nav-link" href="#projects">Projects</a></li>
                     <li class="nav-item"><a class="nav-link" href="#experience">Experience</a></li>
@@ -72,16 +77,6 @@
                     <li class="nav-item ms-lg-2">
                         <button class="btn-ghost btn-sm-custom" type="button" data-bs-toggle="modal" data-bs-target="#recruiterModal">
                             <i class="fas fa-user-check"></i> Recruiter view
-                        </button>
-                    </li>
-                    <li class="nav-item ms-lg-1">
-                        <a class="btn-ghost btn-sm-custom" href="Ajith - CV.pdf" target="_blank" rel="noopener" title="Download CV (PDF)">
-                            <i class="fas fa-file-download"></i> CV
-                        </a>
-                    </li>
-                    <li class="nav-item ms-lg-1">
-                        <button class="btn-ghost icon-btn theme-toggle-btn" type="button" id="theme-toggle" title="Switch theme" aria-label="Toggle dark mode">
-                            <i class="fas fa-moon" id="theme-icon"></i>
                         </button>
                     </li>
                 </ul>
@@ -94,41 +89,37 @@
         <canvas id="hero-canvas" class="hero__canvas" aria-hidden="true"></canvas>
         <div class="container hero__inner">
             <div class="row align-items-center g-4 g-lg-5">
-                <div class="col-lg-6 hero__copy">
-                    <div class="badge-ai"><span class="live-dot"></span> AI-powered full-stack engineer</div>
+                <div class="col-lg-5 hero__copy">
+                    <div class="badge-ai"><span class="live-dot"></span> Full-stack &amp; AI engineer · Dubai</div>
                     <h1 class="hero__title">
-                        <span class="word">Building</span>
+                        <span class="word">Hi, I'm Ajith.</span>
+                        <span class="word">I build</span>
                         <span class="word grad-text-animated">intelligent</span>
-                        <span class="word grad-text-animated">systems</span>
-                        <span class="word">&amp;</span>
-                        <span class="word">modern</span>
                         <span class="word">software.</span>
                     </h1>
-                    <div class="typing"><span class="typing__prompt">&gt;_</span> ajith.role = "<span id="typing-text" class="grad-text"></span><span class="typing__cursor"></span>"</div>
+                    <p class="typing" aria-live="off"><span id="typing-text"></span><span class="typing__cursor" aria-hidden="true"></span></p>
                     <p class="hero__bio">
-                        Software engineer combining deep <strong>full-stack architecture</strong> with production <strong>AI &amp; LLM workflows</strong> — high-performance web platforms, intelligent data pipelines, native mobile apps and autonomous-agent integrations. Currently building corporate-banking systems at Emirates NBD, Dubai.
+                        Seven years of full-stack engineering, now shipping <strong>AI and LLM features</strong> inside corporate-banking systems at Emirates NBD.
                     </p>
+                    <p class="hero__lead"><i class="fas fa-arrow-down d-lg-none"></i><i class="fas fa-arrow-right d-none d-lg-inline"></i> Ask my AI assistant anything</p>
                     <div class="hero__cta">
-                        <a href="#projects" class="btn-glow magnetic"><i class="fas fa-laptop-code"></i> View featured work</a>
-                        <button type="button" class="btn-ghost magnetic" data-ai-prompt="Give me a 30-second summary of Ajith"><i class="fas fa-magic"></i> Ask the AI for a summary</button>
+                        <button type="button" class="btn-ai magnetic" data-ai-prompt="Give me a 30-second summary of Ajith"><i class="fas fa-magic"></i> Get a 30-second summary</button>
+                        <a href="#projects" class="btn-ghost magnetic"><i class="fas fa-laptop-code"></i> See projects</a>
                     </div>
                     <div class="hero__social">
-                        <a href="https://github.com/ajithgopi" target="_blank" rel="noopener" class="social-icon-btn" title="GitHub"><i class="fab fa-github"></i></a>
-                        <a href="https://www.linkedin.com/in/ahgopi/" target="_blank" rel="noopener" class="social-icon-btn" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-                        <a href="https://stackoverflow.com/users/5321660/ajith-gopi" target="_blank" rel="noopener" class="social-icon-btn" title="Stack Overflow"><i class="fab fa-stack-overflow"></i></a>
-                        <a href="mailto:ajithgopikklm@gmail.com" class="social-icon-btn" title="Email"><i class="fas fa-envelope"></i></a>
-                        <a href="https://www.youtube.com/distrostudios" target="_blank" rel="noopener" class="social-icon-btn" title="YouTube"><i class="fab fa-youtube"></i></a>
-                        <a href="https://instagram.com/ajith_gp" target="_blank" rel="noopener" class="social-icon-btn" title="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="https://github.com/ajithgopi" target="_blank" rel="noopener" class="social-icon-btn" title="GitHub" aria-label="GitHub"><i class="fab fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/ahgopi/" target="_blank" rel="noopener" class="social-icon-btn" title="LinkedIn" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="mailto:ajithgopikklm@gmail.com" class="social-icon-btn" title="Email" aria-label="Email"><i class="fas fa-envelope"></i></a>
                     </div>
                 </div>
 
-                <div class="col-lg-6 hero__panel-col">
+                <div class="col-lg-7 hero__panel-col">
                     <div class="ai-panel-placeholder" id="ai-panel-placeholder"></div>
                     <section class="ai-panel" id="ai-assistant" aria-label="Ajith's AI assistant">
                         <header class="ai-panel__header">
                             <div class="ai-orb" aria-hidden="true"></div>
                             <div class="ai-panel__title">
-                                <strong>Ajith's AI Assistant</strong>
+                                <strong><span class="d-none d-sm-inline">Ajith's </span>AI Assistant</strong>
                                 <span class="ai-status" id="ai-status"><i class="dot"></i> Built-in · runs in your browser</span>
                             </div>
                             <div class="ai-panel__tools">
@@ -143,19 +134,17 @@
                         </header>
                         <div class="ai-progress" id="ai-progress" hidden><div class="ai-progress__bar" id="ai-progress-bar"></div></div>
                         <div class="ai-panel__info" id="ai-info" hidden>
-                            <b>How it works.</b> This assistant is a retrieval-first reasoning engine that runs entirely in your browser: spell-correction → intent classification → entity extraction → BM25 retrieval over Ajith's CV → answer composition, with conversational memory for follow-ups. Nothing is sent to a server. Optionally switch to a real LLM running on your GPU (WebGPU) or a local Ollama — both are grounded with the same retrieved context (RAG).
-                            <div class="pills"><span class="pill">no API keys</span><span class="pill">no tracking</span><span class="pill">BM25</span><span class="pill">intent + NER</span><span class="pill">WebGPU optional</span><span class="pill">Ollama optional</span></div>
+                            <b>How it works.</b> The assistant runs entirely in your browser and nothing you type is sent to a server. It understands your question, retrieves the matching parts of Ajith's CV and composes an answer, remembering the conversation for follow-ups. From the engine menu you can switch to a real open-weight LLM that runs on your own GPU and is grounded in the same CV context.
                         </div>
                         <div class="ai-panel__body" id="ai-chat-body" role="log" aria-live="polite"></div>
                         <div class="ai-panel__chips" id="ai-chips"></div>
                         <form class="ai-panel__input" id="ai-form" autocomplete="off">
-                            <textarea id="ai-chat-input" rows="1" placeholder="Ask about experience, skills, projects… (try /help)" aria-label="Message the assistant"></textarea>
+                            <textarea id="ai-chat-input" rows="1" placeholder="Ask about experience, skills or projects…" aria-label="Message the assistant"></textarea>
                             <button type="button" class="ai-tool-btn ai-mic-btn" id="ai-mic-btn" title="Voice input"><i class="fas fa-microphone"></i></button>
                             <button type="submit" class="ai-send-btn" id="ai-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                         </form>
                         <div class="ai-panel__foot">
                             <span><kbd>Enter</kbd> send · <kbd>Shift</kbd>+<kbd>Enter</kbd> newline · <kbd>/</kbd> focus</span>
-                            <span>runs locally · conversation saved on this device</span>
                         </div>
                     </section>
                 </div>
@@ -178,34 +167,13 @@
         </div>
     </header>
 
-    <!-- Tech marquee -->
-    <div class="marquee" aria-hidden="true">
-        <div class="marquee__track">
-            <span class="marquee__item"><i class="fab fa-react"></i> React / Next.js</span>
-            <span class="marquee__item"><i class="fab fa-node-js"></i> Node.js</span>
-            <span class="marquee__item"><i class="fas fa-brain"></i> LLMs &amp; RAG</span>
-            <span class="marquee__item"><i class="fab fa-python"></i> Python</span>
-            <span class="marquee__item"><i class="fas fa-database"></i> MongoDB</span>
-            <span class="marquee__item"><i class="fab fa-aws"></i> AWS</span>
-            <span class="marquee__item"><i class="fab fa-docker"></i> Docker / K8s</span>
-            <span class="marquee__item"><i class="fas fa-code"></i> TypeScript</span>
-            <span class="marquee__item"><i class="fab fa-swift"></i> Swift / iOS</span>
-            <span class="marquee__item"><i class="fas fa-server"></i> PostgreSQL</span>
-            <span class="marquee__item"><i class="fas fa-robot"></i> Claude · OpenAI · Ollama</span>
-            <span class="marquee__item"><i class="fab fa-laravel"></i> Laravel</span>
-            <span class="marquee__item"><i class="fas fa-project-diagram"></i> Microservices</span>
-            <span class="marquee__item"><i class="fab fa-angular"></i> Angular</span>
-            <span class="marquee__item"><i class="fas fa-bolt"></i> Redis</span>
-        </div>
-    </div>
-
     <!-- AI Engineering -->
     <section class="section" id="ai-hub">
         <div class="container">
             <div class="section-head text-center">
-                <span class="section-tag centered"><i class="fas fa-magic"></i> AI integration &amp; engineering</span>
-                <h2 class="section-title">Accelerating software with <span class="grad-text-ai">artificial intelligence</span></h2>
-                <p class="section-sub">From custom RAG pipelines and autonomous LLM agents to predictive machine-learning models — shipped inside real products, not slide decks.</p>
+                <span class="section-tag centered"><i class="fas fa-magic"></i> AI engineering</span>
+                <h2 class="section-title">What I build with <span class="grad-text-ai">AI</span></h2>
+                <p class="section-sub">RAG pipelines, LLM agents and machine-learning models, shipped inside real products.</p>
             </div>
             <div class="row g-4">
                 <div class="col-md-4">
@@ -243,9 +211,9 @@
     <section class="section" id="skills">
         <div class="container">
             <div class="section-head text-center">
-                <span class="section-tag centered"><i class="fas fa-laptop-code"></i> Technical skill matrix</span>
+                <span class="section-tag centered"><i class="fas fa-laptop-code"></i> Skills</span>
                 <h2 class="section-title">Tools &amp; technologies</h2>
-                <p class="section-sub">Filter by domain or search — bars show hands-on depth. Ask the assistant for years and context on any of them.</p>
+                <p class="section-sub">Filter by area or search. Bars show hands-on depth, and the assistant can give context on any of them.</p>
             </div>
             <div class="row justify-content-center mb-4">
                 <div class="col-md-7 col-lg-5">
@@ -307,9 +275,9 @@
     <section class="section" id="projects">
         <div class="container">
             <div class="section-head text-center">
-                <span class="section-tag centered"><i class="fas fa-cubes"></i> Featured portfolio</span>
+                <span class="section-tag centered"><i class="fas fa-cubes"></i> Projects</span>
                 <h2 class="section-title">Featured projects</h2>
-                <p class="section-sub">Intelligent enterprise platforms, cloud services and mobile software — shipped to real users.</p>
+                <p class="section-sub">Enterprise platforms, cloud services and mobile apps shipped to real users.</p>
             </div>
             <div class="filter-tabs">
                 <button class="project-tab active" data-filter="all">All projects</button>
@@ -320,9 +288,10 @@
             <div class="row g-4">
                 <div class="col-md-6 col-lg-4 project-item" data-category="ai web">
                     <article class="project-card spot tilt">
-                        <div class="project-art art-1"><span class="project-badge">Analytics &amp; AI</span><i class="fas fa-chart-line art-icon"></i><h4>reach52 Insights</h4></div>
+                        <div class="project-art art-1"><span class="project-badge">Analytics &amp; AI</span><i class="fas fa-chart-line art-icon"></i></div>
                         <div class="project-body">
-                            <h5 class="project-title">Insights analytics platform</h5>
+                            <h3 class="project-title">reach52 Insights</h3>
+                            <div class="project-subtitle">Insights analytics platform</div>
                             <div class="project-meta">2023 – present · reach52 · AWS EKS</div>
                             <p class="project-desc">Enterprise monitoring platform presenting complex analytical and statistical data in human-friendly formats for global healthcare projects.</p>
                             <div class="chip-list"><span class="tag-chip ai">Node.js</span><span class="tag-chip">React / Redux</span><span class="tag-chip">PostgreSQL</span><span class="tag-chip">Bitbucket Pipelines</span></div>
@@ -331,9 +300,10 @@
                 </div>
                 <div class="col-md-6 col-lg-4 project-item" data-category="web">
                     <article class="project-card spot tilt">
-                        <div class="project-art art-2"><span class="project-badge">Admin suite</span><i class="fas fa-tasks art-icon"></i><h4>reach52 Connect</h4></div>
+                        <div class="project-art art-2"><span class="project-badge">Admin suite</span><i class="fas fa-tasks art-icon"></i></div>
                         <div class="project-body">
-                            <h5 class="project-title">Admin &amp; campaign automation</h5>
+                            <h3 class="project-title">reach52 Connect</h3>
+                            <div class="project-subtitle">Admin &amp; campaign automation</div>
                             <div class="project-meta">2022 – 2023 · reach52 · AWS EC2 / Jenkins</div>
                             <p class="project-desc">Internal business-administration system automating user tracking, campaign creation and daily operations across distributed teams.</p>
                             <div class="chip-list"><span class="tag-chip">Node.js</span><span class="tag-chip">Angular</span><span class="tag-chip">Material UI</span><span class="tag-chip">MongoDB</span></div>
@@ -342,9 +312,10 @@
                 </div>
                 <div class="col-md-6 col-lg-4 project-item" data-category="web ai">
                     <article class="project-card spot tilt">
-                        <div class="project-art art-3"><span class="project-badge">Next.js PWA</span><i class="fas fa-layer-group art-icon"></i><h4>Tutorhow Front Desk</h4></div>
+                        <div class="project-art art-3"><span class="project-badge">Next.js PWA</span><i class="fas fa-layer-group art-icon"></i></div>
                         <div class="project-body">
-                            <h5 class="project-title">Virtual front desk &amp; lead LMS</h5>
+                            <h3 class="project-title">Tutorhow Front Desk</h3>
+                            <div class="project-subtitle">Virtual front desk &amp; lead LMS</div>
                             <div class="project-meta">2020 – 2021 · Tutorhow · Lead developer</div>
                             <p class="project-desc">High-performance Progressive Web App for lead management with graph data, backend micro-functions and multi-database persistence.</p>
                             <div class="chip-list"><span class="tag-chip">Next.js (full stack)</span><span class="tag-chip">Golang</span><span class="tag-chip">Neo4j</span><span class="tag-chip">MongoDB &amp; Redis</span></div>
@@ -353,9 +324,10 @@
                 </div>
                 <div class="col-md-6 col-lg-4 project-item" data-category="mobile">
                     <article class="project-card spot tilt">
-                        <div class="project-art art-4"><span class="project-badge">Mobile app</span><i class="fas fa-mobile-alt art-icon"></i><h4>Tutorhow Mobile</h4></div>
+                        <div class="project-art art-4"><span class="project-badge">Mobile app</span><i class="fas fa-mobile-alt art-icon"></i></div>
                         <div class="project-body">
-                            <h5 class="project-title">White-labelled training app</h5>
+                            <h3 class="project-title">Tutorhow Mobile</h3>
+                            <div class="project-subtitle">White-labelled training app</div>
                             <div class="project-meta">2019 – 2021 · Tutorhow · Serverless</div>
                             <p class="project-desc">White-labelled mobile application for edtech clients to run training institutes, backed by serverless cloud infrastructure.</p>
                             <div class="chip-list"><span class="tag-chip">React Native</span><span class="tag-chip">AWS Lambda</span><span class="tag-chip">MongoDB Atlas</span></div>
@@ -364,9 +336,10 @@
                 </div>
                 <div class="col-md-6 col-lg-4 project-item" data-category="web">
                     <article class="project-card spot tilt">
-                        <div class="project-art art-5"><span class="project-badge">EdTech</span><i class="fas fa-graduation-cap art-icon"></i><h4>Tutorhow ETO</h4></div>
+                        <div class="project-art art-5"><span class="project-badge">EdTech</span><i class="fas fa-graduation-cap art-icon"></i></div>
                         <div class="project-body">
-                            <h5 class="project-title">Online learning &amp; fee platform</h5>
+                            <h3 class="project-title">Tutorhow ETO</h3>
+                            <div class="project-subtitle">Online learning &amp; fee platform</div>
                             <div class="project-meta">2019 – 2021 · Tutorhow · VPS</div>
                             <p class="project-desc">Online-class platform letting educators market under their own brand, collect fees, schedule classes and grade assignments.</p>
                             <div class="chip-list"><span class="tag-chip">PHP Laravel</span><span class="tag-chip">Node.js</span><span class="tag-chip">MySQL &amp; DynamoDB</span></div>
@@ -375,9 +348,10 @@
                 </div>
                 <div class="col-md-6 col-lg-4 project-item" data-category="mobile">
                     <article class="project-card spot tilt">
-                        <div class="project-art art-6"><span class="project-badge">iOS · SwiftUI</span><i class="fab fa-apple art-icon"></i><h4>Gold Vault Tracker</h4></div>
+                        <div class="project-art art-6"><span class="project-badge">iOS · SwiftUI</span><i class="fab fa-apple art-icon"></i></div>
                         <div class="project-body">
-                            <h5 class="project-title">Precious-metals investment app</h5>
+                            <h3 class="project-title">Gold Vault Tracker</h3>
+                            <div class="project-subtitle">Precious-metals investment app</div>
                             <div class="project-meta">2023 – present · Personal · App Store</div>
                             <p class="project-desc">Native iOS asset-tracking app with WidgetKit home-screen widgets, real-time market APIs and biometric authentication.</p>
                             <div class="chip-list"><span class="tag-chip">Swift</span><span class="tag-chip">SwiftUI</span><span class="tag-chip">WidgetKit</span></div>
@@ -392,9 +366,9 @@
     <section class="section" id="experience">
         <div class="container">
             <div class="section-head text-center">
-                <span class="section-tag centered"><i class="fas fa-briefcase"></i> Career milestones</span>
-                <h2 class="section-title">Work experience</h2>
-                <p class="section-sub">A proven track record across corporate banking, cloud microservices and edtech platforms.</p>
+                <span class="section-tag centered"><i class="fas fa-briefcase"></i> Experience</span>
+                <h2 class="section-title">Where I've worked</h2>
+                <p class="section-sub">Corporate banking, cloud microservices and edtech platforms.</p>
             </div>
             <div class="timeline">
                 <div class="timeline__line"></div>
@@ -407,7 +381,7 @@
                         </div>
                         <div class="timeline-company">Emirates NBD (via Synechron Technologies)</div>
                         <div class="timeline-date"><i class="fas fa-map-marker-alt me-1"></i> Dubai, UAE</div>
-                        <p class="text-muted small">Developing corporate-banking applications for Relationship-Manager daily management and deal processing. Prioritised AI-based (Claude) development with in-sprint automation. React and Node.js on custom frameworks, MongoDB primary store, OracleDB for shared services.</p>
+                        <p class="timeline-desc">Developing corporate-banking applications for Relationship-Manager daily management and deal processing. Prioritised AI-based (Claude) development with in-sprint automation. React and Node.js on custom frameworks, MongoDB primary store, OracleDB for shared services.</p>
                         <div class="chip-list"><span class="tag-chip ai">Claude AI automation</span><span class="tag-chip">React</span><span class="tag-chip">Node.js</span><span class="tag-chip">MongoDB</span><span class="tag-chip">OracleDB</span></div>
                     </div>
                 </div>
@@ -420,7 +394,7 @@
                         </div>
                         <div class="timeline-company">reach52 Pte. Ltd.</div>
                         <div class="timeline-date"><i class="fas fa-globe me-1"></i> Singapore (remote)</div>
-                        <p class="text-muted small">Engineered microservices-based data-management and analytics applications. Next.js, Node.js (Express), MongoDB and AWS (EKS, EC2, Lambda, S3, RDS, ElastiCache). CI/CD via Jenkins, Bitbucket Pipelines, Docker and Kubernetes.</p>
+                        <p class="timeline-desc">Engineered microservices-based data-management and analytics applications. Next.js, Node.js (Express), MongoDB and AWS (EKS, EC2, Lambda, S3, RDS, ElastiCache). CI/CD via Jenkins, Bitbucket Pipelines, Docker and Kubernetes.</p>
                         <div class="chip-list"><span class="tag-chip">Next.js / React</span><span class="tag-chip">Node.js</span><span class="tag-chip">Angular &amp; Redux</span><span class="tag-chip">AWS (EKS, Lambda)</span><span class="tag-chip">Docker &amp; K8s</span></div>
                     </div>
                 </div>
@@ -433,7 +407,7 @@
                         </div>
                         <div class="timeline-company">Tutorhow Scientific Edutech Pvt. Ltd.</div>
                         <div class="timeline-date"><i class="fas fa-map-marker-alt me-1"></i> Cochin, India</div>
-                        <p class="text-muted small">Led a team of 3 developers and 2 QA engineers. Built scalable applications with Next.js, Tailwind CSS, Laravel, MongoDB, MySQL, MariaDB, Redis, DynamoDB and WebSockets; React Native mobile apps and real-time audio/video tools.</p>
+                        <p class="timeline-desc">Led a team of 3 developers and 2 QA engineers. Built scalable applications with Next.js, Tailwind CSS, Laravel, MongoDB, MySQL, MariaDB, Redis, DynamoDB and WebSockets; React Native mobile apps and real-time audio/video tools.</p>
                         <div class="chip-list"><span class="tag-chip">Team lead</span><span class="tag-chip">Next.js / Tailwind</span><span class="tag-chip">React Native</span><span class="tag-chip">Laravel / PHP</span><span class="tag-chip">WebSockets</span></div>
                     </div>
                 </div>
@@ -446,7 +420,7 @@
                         </div>
                         <div class="timeline-company">Infosys Ltd.</div>
                         <div class="timeline-date"><i class="fas fa-map-marker-alt me-1"></i> Bangalore, India</div>
-                        <p class="text-muted small">Modified web applications written in Python and provided specialised technical support and resolution on the ServiceNow enterprise platform.</p>
+                        <p class="timeline-desc">Modified web applications written in Python and provided specialised technical support and resolution on the ServiceNow enterprise platform.</p>
                         <div class="chip-list"><span class="tag-chip">Python</span><span class="tag-chip">ServiceNow</span><span class="tag-chip">Web applications</span></div>
                     </div>
                 </div>
@@ -473,13 +447,12 @@
                 </div>
                 <div class="modal-body modal-body-dark">
                     <div class="row g-3">
-                        <div class="col-md-6"><h6><i class="fas fa-user-tag text-success me-2"></i> Current role &amp; location</h6><p class="text-muted small">Full Stack Engineer at Emirates NBD (via Synechron Technologies). Based in Dubai, UAE. Open to senior full-stack and AI-architecture roles — on-site, remote or relocation.</p></div>
-                        <div class="col-md-6"><h6><i class="fas fa-code text-info me-2"></i> Primary tech stack</h6><p class="text-muted small">Node.js, React, Next.js, TypeScript, Python, Swift, Kotlin, MongoDB, SQL, AWS, Docker/K8s, LLM &amp; RAG integrations.</p></div>
-                        <div class="col-md-6"><h6><i class="fas fa-graduation-cap text-warning me-2"></i> Education</h6><p class="text-muted small">Bachelor of Computer Application (BCA), Mahatma Gandhi University, 7.7 CGPA.</p></div>
-                        <div class="col-md-6"><h6><i class="fas fa-envelope text-primary me-2"></i> Contact</h6><p class="text-muted small">Email: ajithgopikklm@gmail.com / me@agopi.in<br>Phone: (+971) 555-166-278</p></div>
+                        <div class="col-md-6"><h6><i class="fas fa-user-tag text-success me-2"></i> Current role &amp; location</h6><p class="timeline-desc">Full Stack Engineer at Emirates NBD (via Synechron Technologies). Based in Dubai, UAE. Open to senior full-stack and AI-architecture roles — on-site, remote or relocation.</p></div>
+                        <div class="col-md-6"><h6><i class="fas fa-code text-info me-2"></i> Primary tech stack</h6><p class="timeline-desc">Node.js, React, Next.js, TypeScript, Python, Swift, Kotlin, MongoDB, SQL, AWS, Docker/K8s, LLM &amp; RAG integrations.</p></div>
+                        <div class="col-md-6"><h6><i class="fas fa-graduation-cap text-warning me-2"></i> Education</h6><p class="timeline-desc">Bachelor of Computer Application (BCA), Mahatma Gandhi University, 7.7 CGPA.</p></div>
+                        <div class="col-md-6"><h6><i class="fas fa-envelope text-primary me-2"></i> Contact</h6><p class="timeline-desc">Email: ajithgopikklm@gmail.com / me@agopi.in<br>Phone: (+971) 555-166-278</p></div>
                     </div>
                     <div class="d-flex flex-wrap gap-2 mt-3">
-                        <a class="btn-glow btn-sm-custom" href="Ajith - CV.pdf" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Download CV</a>
                         <a class="btn-ghost btn-sm-custom" href="https://www.linkedin.com/in/ahgopi/" target="_blank" rel="noopener"><i class="fab fa-linkedin"></i> LinkedIn</a>
                         <button type="button" class="btn-ghost btn-sm-custom" data-bs-dismiss="modal" data-ai-prompt="Why should I hire Ajith?"><i class="fas fa-magic"></i> Ask the AI why hire him</button>
                     </div>
@@ -519,10 +492,10 @@
 
     <!-- JS -->
     <script src="js/bootstrap.bundle.min.js"></script>
-    <script src="js/ai-engine.js?v=20260911"></script>
-    <script src="js/visuals.js?v=20260911"></script>
-    <script src="js/ai-assistant.js?v=20260911"></script>
-    <script src="js/main.js?v=20260911"></script>
+    <script src="js/ai-engine.js?v=20260912"></script>
+    <script src="js/visuals.js?v=20260912"></script>
+    <script src="js/ai-assistant.js?v=20260912"></script>
+    <script src="js/main.js?v=20260912"></script>
 </body>
 
 </html>

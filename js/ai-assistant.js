@@ -5,7 +5,6 @@
  *   builtin  — AjithAI reasoning engine (js/ai-engine.js), instant, offline
  *   webllm   — real LLM in the browser via WebGPU (@mlc-ai/web-llm),
  *              loaded on demand; uses the built-in retrieval as RAG context
- *   ollama   — local Ollama server (http://localhost:11434), same RAG context
  *
  * UI: streaming reveal, live reasoning trace, follow-up chips, page
  * actions, copy/regenerate, voice input, persistence, expand mode.
@@ -19,20 +18,26 @@
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const WEBLLM_MODELS = [
-        { id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 0.5B (fast · ~400 MB)' },
         { id: 'SmolLM2-360M-Instruct-q4f16_1-MLC', label: 'SmolLM2 360M (tiny · ~250 MB)' },
+        { id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 0.5B (fast · ~400 MB)' },
         { id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC', label: 'Llama 3.2 1B (~700 MB)' },
         { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 1.5B (best · ~1 GB)' }
     ];
     const ENGINE_META = {
         builtin: { label: 'Built-in', icon: 'fa-microchip', title: 'Built-in reasoning', desc: 'Instant, offline. Intent + entity + BM25 retrieval over the CV.' },
-        webllm: { label: 'WebGPU LLM', icon: 'fa-bolt', title: 'In-browser LLM (WebGPU)', desc: 'Runs a real open model on your GPU. One-time download, then offline.' },
-        ollama: { label: 'Ollama', icon: 'fa-server', title: 'Local Ollama', desc: 'Use any model from an Ollama server on your machine.' }
+        webllm: { label: 'WebGPU LLM', icon: 'fa-bolt', title: 'In-browser LLM (WebGPU)', desc: 'Runs a real open model on your GPU. One-time download, then offline.' }
     };
 
+    const WEBLLM_VERSION = '0.2.85';
+    const WEBLLM_CDNS = [
+        `https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@${WEBLLM_VERSION}/lib/index.js`,
+        `https://unpkg.com/@mlc-ai/web-llm@${WEBLLM_VERSION}/lib/index.js`
+    ];
+
     let engine, settings, history = [], busy = false, aborter = null, lastUserText = '';
-    let webllm = { engine: null, model: null, loading: false };
-    let download = { active: false, promise: null, model: null, card: null };
+    let webllm = { engine: null, model: null }, webllmModule = null;
+    let download = { seq: 0, active: false, promise: null, model: null, card: null };
+    let onInitProgress = null;
     const INPUT_PLACEHOLDER = 'Ask about experience, skills, projects… (try /help)';
     let el = {};
 
@@ -170,17 +175,58 @@
         if (!turns.length || turns[turns.length - 1].text !== userText) msgs.push({ role: 'user', content: userText });
         return msgs;
     }
-    async function ensureWebLLM(onProgress) {
-        if (webllm.engine && webllm.model === settings.webllmModel) return webllm.engine;
+    /* The library is imported as a pinned, pre-built ESM *file* rather than through
+       jsDelivr's on-demand /+esm build service, which 503s on a cold bundle for a
+       package this large. Each CDN is tried in turn so one bad edge node isn't fatal. */
+    async function importWebLLM() {
+        if (webllmModule) return webllmModule;
+        const errors = [];
+        for (const url of WEBLLM_CDNS) {
+            try {
+                const mod = await import(url);
+                if (!mod || typeof mod.CreateMLCEngine !== 'function') throw new Error('unexpected module shape');
+                webllmModule = mod;
+                return mod;
+            } catch (e) {
+                errors.push(`${new URL(url).host}: ${e && e.message ? e.message : e}`);
+            }
+        }
+        throw new Error('Could not load the WebLLM library from any CDN (' + errors.join(' · ') + '). Check your network or ad-blocker, then retry.');
+    }
+    /* One long-lived MLCEngine is reused for every model: engine.unload() aborts an
+       in-flight engine.reload(), which is how switching models mid-download pauses the
+       old one. Shards already fetched stay in the browser's Cache API, so going back to
+       a paused model resumes from where it stopped rather than starting over. */
+    async function getMLCEngine() {
         if (!navigator.gpu) throw new Error('WebGPU is not available in this browser. Use a recent Chrome or Edge on desktop, or switch back to the built-in engine.');
-        webllm.loading = true;
-        try {
-            const mod = await import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2/+esm');
-            if (webllm.engine) { try { await webllm.engine.unload(); } catch (e) { /* ignore */ } webllm.engine = null; webllm.model = null; }
-            const eng = await mod.CreateMLCEngine(settings.webllmModel, { initProgressCallback: (p) => onProgress && onProgress(p) });
-            webllm.engine = eng; webllm.model = settings.webllmModel;
-            return eng;
-        } finally { webllm.loading = false; }
+        const mod = await importWebLLM();
+        if (!webllm.engine) webllm.engine = new mod.MLCEngine({ initProgressCallback: (p) => { if (onInitProgress) onInitProgress(p); } });
+        return webllm.engine;
+    }
+    /* reload() *resolves* rather than throwing when unload() aborts it, so a superseded
+       load looks exactly like a successful one. Every load therefore carries a sequence
+       number and a stale one is not allowed to claim the engine, the card or the chat. */
+    async function runModelLoad(model, seq) {
+        const eng = await getMLCEngine();
+        if (seq !== download.seq) return null;
+        // Only ever one model in flight — drop whatever is loaded or still downloading.
+        webllm.model = null;
+        try { await eng.unload(); } catch (e) { /* ignore */ }
+        if (seq !== download.seq) return null;
+        onInitProgress = (p) => { if (seq === download.seq) updateDownload(p); };
+        await eng.reload(model);
+        if (seq !== download.seq) return null;
+        webllm.model = model;
+        return eng;
+    }
+    /* Models that have completed a full load before, so their weights are in the
+       browser's Cache API. Used to decide what to auto-load and how to label the card. */
+    function readyModels() { return Array.isArray(settings.readyModels) ? settings.readyModels : []; }
+    function isCached(id) { return readyModels().indexOf(id) >= 0; }
+    function markCached(id) {
+        if (isCached(id)) return;
+        settings.readyModels = readyModels().concat([id]);
+        saveJSON(SETTINGS_KEY, settings);
     }
     function modelLabel(id) { const m = WEBLLM_MODELS.find(x => x.id === id); return m ? m.label.split(' (')[0] : String(id).split('-q4')[0]; }
 
@@ -192,12 +238,16 @@
         el.input.placeholder = on ? (placeholder || 'Downloading model…') : INPUT_PLACEHOLDER;
         document.querySelectorAll('[data-ai-prompt]').forEach(b => b.disabled = on);
     }
-    function renderDownloadCard(label) {
-        if (download.card) download.card.remove();
+    function removeDownloadCards() {
+        el.body.querySelectorAll('.ai-dl').forEach(n => n.remove());
+        download.card = null;
+    }
+    function renderDownloadCard(label, cached) {
+        removeDownloadCards();
         el.body.insertAdjacentHTML('beforeend', `<div class="chat-msg system ai-dl" id="ai-dl"><div class="chat-bubble ai-dl__card" role="status" aria-live="polite">
-            <div class="ai-dl__head"><i class="fas fa-download"></i><b>Downloading ${escapeHtml(label)}</b><span class="ai-dl__pct" id="ai-dl-pct">0%</span></div>
+            <div class="ai-dl__head"><i class="fas ${cached ? 'fa-microchip' : 'fa-download'}"></i><b id="ai-dl-title">${cached ? 'Loading' : 'Downloading'} ${escapeHtml(label)}</b><span class="ai-dl__pct" id="ai-dl-pct">0%</span></div>
             <div class="ai-dl__bar"><span id="ai-dl-bar" style="width:0%"></span></div>
-            <div class="ai-dl__text" id="ai-dl-text">Preparing… the model is fetched once and cached by your browser. Chat is paused until it's ready.</div>
+            <div class="ai-dl__text" id="ai-dl-text">${cached ? 'Already downloaded — restoring it to your GPU.' : 'Preparing… the model is fetched once and cached by your browser. Chat is paused until it\'s ready.'}</div>
             <div class="ai-dl__foot"><span class="ai-dl__eta" id="ai-dl-eta"><i class="fas fa-circle-notch fa-spin"></i> starting</span><button type="button" class="action-chip" id="ai-dl-cancel"><i class="fas fa-microchip"></i> Use built-in instead</button></div>
         </div></div>`);
         download.card = $('ai-dl');
@@ -208,6 +258,14 @@
         const pct = Math.max(0, Math.min(100, Math.round((p && typeof p.progress === 'number' ? p.progress : 0) * 100)));
         const text = p && p.text ? String(p.text).replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim() : '';
         const gpuPhase = /gpu|shader|loading/i.test(text) && pct >= 100;
+        // The browser can evict cached weights; if real fetching starts, correct the label.
+        // WebLLM says "Start to fetch params" even on a pure cache restore, so key off the
+        // download phase specifically ("Fetching param cache") and not the word "fetch".
+        const fetching = /fetching param/i.test(text) && !/from cache/i.test(text);
+        if (download.card && fetching && download.labelledCached) {
+            download.labelledCached = false;
+            const t = $('ai-dl-title'); if (t) t.textContent = 'Downloading ' + modelLabel(download.model);
+        }
         if (download.card) {
             const pctEl = $('ai-dl-pct'), bar = $('ai-dl-bar'), txt = $('ai-dl-text'), eta = $('ai-dl-eta');
             if (pctEl) pctEl.textContent = pct + '%';
@@ -216,71 +274,69 @@
             if (eta) eta.innerHTML = gpuPhase ? '<i class="fas fa-bolt"></i> compiling for your GPU' : (p && p.timeElapsed ? `<i class="fas fa-clock"></i> ${Math.round(p.timeElapsed)}s elapsed` : '<i class="fas fa-circle-notch fa-spin"></i> downloading');
         }
         el.progress.hidden = false; el.progressBar.style.width = pct + '%';
-        setStatus(`Loading ${modelLabel(settings.webllmModel)} · ${pct}%`, 'busy');
+        setStatus(`Loading ${modelLabel(download.model || settings.webllmModel)} · ${pct}%`, 'busy');
     }
     function finishDownload(ok, err) {
         const label = modelLabel(download.model || settings.webllmModel);
-        download.active = false; download.promise = null;
-        if (download.card) {
-            const card = download.card.querySelector('.ai-dl__card');
-            card.classList.add(ok ? 'is-done' : 'is-error');
-            card.innerHTML = ok
-                ? `<div class="ai-dl__head"><i class="fas fa-check-circle"></i><b>${escapeHtml(label)} is ready</b><span class="ai-dl__pct">100%</span></div><div class="ai-dl__bar"><span style="width:100%"></span></div><div class="ai-dl__text">Running on your GPU, fully offline. Answers stay grounded in Ajith's CV via retrieval.${settings.engine !== 'webllm' ? ' Switch the engine to <b>WebGPU LLM</b> to use it.' : ''}</div>`
-                : `<div class="ai-dl__head"><i class="fas fa-exclamation-triangle"></i><b>Model failed to load</b></div><div class="ai-dl__text">${escapeHtml(err && err.message ? err.message : String(err))}<br>Switched back to the built-in engine.</div>`;
-            download.card = null;
-        }
+        download.active = false; download.promise = null; onInitProgress = null;
+        removeDownloadCards();           // the card only ever represents an active download
         hideProgress();
         setChatDisabled(false);
-        if (!ok && settings.engine === 'webllm') { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); }
+        if (ok) { markCached(download.model || settings.webllmModel); announceActiveModel(label); }
+        else {
+            addSystemNote(`<i class="fas fa-exclamation-triangle"></i> <b>${escapeHtml(label)}</b> failed to load — ${escapeHtml(err && err.message ? err.message : String(err))}`);
+            if (settings.engine === 'webllm') { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); }
+        }
+    }
+    function announceActiveModel(label) {
+        addSystemNote(`<i class="fas fa-check-circle"></i> Now using <b>${escapeHtml(label)}</b> — a real LLM running on your GPU, grounded in Ajith's CV via retrieval.${settings.engine !== 'webllm' ? ' Switch the engine to <b>WebGPU LLM</b> to use it.' : ''}`);
+    }
+    /* Pause whatever is downloading and clear its card. Fetched shards stay cached, so
+       coming back to this model later resumes instead of restarting. */
+    function cancelModelLoad() {
+        if (!download.active) return;
+        download.seq++;                  // invalidates the in-flight load
+        download.active = false; download.promise = null; download.model = null;
+        onInitProgress = null;
+        webllm.model = null;
+        removeDownloadCards();
+        setChatDisabled(false);
+        hideProgress();
+        if (webllm.engine) { try { webllm.engine.unload(); } catch (e) { /* ignore */ } }
     }
     function loadWebLLM() {
-        if (webllm.engine && webllm.model === settings.webllmModel) return Promise.resolve(webllm.engine);
-        if (download.promise && download.model === settings.webllmModel) { if (settings.engine === 'webllm') setChatDisabled(true, `Downloading ${modelLabel(settings.webllmModel)}… chat resumes when it's ready`); return download.promise; }
-        const label = modelLabel(settings.webllmModel);
-        download.active = true; download.model = settings.webllmModel;
-        renderDownloadCard(label);
-        setChatDisabled(true, `Downloading ${label}… chat resumes when it's ready`);
+        const model = settings.webllmModel;
+        if (!download.active && webllm.model === model) return Promise.resolve(webllm.engine);
+        if (download.active && download.model === model) {
+            if (settings.engine === 'webllm') setChatDisabled(true, `Downloading ${modelLabel(model)}… chat resumes when it's ready`);
+            return download.promise;
+        }
+        return startModelLoad(model);
+    }
+    function startModelLoad(model) {
+        const seq = ++download.seq;      // supersedes anything already in flight
+        const paused = download.active ? download.model : null;
+        const label = modelLabel(model);
+        download.active = true; download.model = model; onInitProgress = null;
+        download.labelledCached = isCached(model);
+        if (paused) addSystemNote(`<i class="fas fa-pause-circle"></i> Paused the <b>${escapeHtml(modelLabel(paused))}</b> download and started <b>${escapeHtml(label)}</b> — what it fetched is cached, so resuming it later picks up where it stopped.`);
+        renderDownloadCard(label, download.labelledCached);
+        setChatDisabled(true, `${download.labelledCached ? 'Loading' : 'Downloading'} ${label}… chat resumes when it's ready`);
         updateDownload({ progress: 0, text: '' });
-        download.promise = ensureWebLLM(updateDownload)
-            .then(eng => { finishDownload(true); return eng; })
-            .catch(err => { finishDownload(false, err); throw err; });
+        download.promise = runModelLoad(model, seq)
+            .then(eng => { if (seq === download.seq) finishDownload(true); return eng; })
+            .catch(err => { if (seq === download.seq) finishDownload(false, err); throw err; });
         return download.promise;
     }
     async function* streamWebLLM(messages, signal) {
         const eng = await loadWebLLM();
+        if (!eng) throw new Error('Model loading was interrupted by a model switch.');
         const chunks = await eng.chat.completions.create({ messages, stream: true, temperature: 0.3, max_tokens: 420 });
         for await (const c of chunks) {
             if (signal.aborted) break;
             const d = c.choices && c.choices[0] && c.choices[0].delta && c.choices[0].delta.content;
             if (d) yield d;
         }
-    }
-    async function* streamOllama(messages, signal) {
-        const base = (settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
-        const model = settings.ollamaModel || 'llama3.2';
-        const res = await fetch(base + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages, stream: true, options: { temperature: 0.3, num_predict: 420 } }), signal });
-        if (!res.ok) throw new Error(`Ollama responded ${res.status} — is the model "${model}" pulled?`);
-        const reader = res.body.getReader(), dec = new TextDecoder(); let buf = '';
-        while (true) {
-            const { done, value } = await reader.read(); if (done) break;
-            buf += dec.decode(value, { stream: true });
-            let idx;
-            while ((idx = buf.indexOf('\n')) >= 0) {
-                const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
-                if (!line) continue;
-                let j; try { j = JSON.parse(line); } catch (e) { continue; }
-                if (j.error) throw new Error(j.error);
-                if (j.message && j.message.content) yield j.message.content;
-                if (j.done) return;
-            }
-        }
-    }
-    async function fetchOllamaModels() {
-        const base = (settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
-        const res = await fetch(base + '/api/tags');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const j = await res.json();
-        return (j.models || []).map(m => m.name);
     }
     function hideProgress() { el.progress.hidden = true; el.progressBar.style.width = '0%'; refreshStatus(); }
 
@@ -292,8 +348,7 @@
     }
     function refreshStatus() {
         if (settings.engine === 'builtin') setStatus('Built-in · runs in your browser');
-        else if (settings.engine === 'webllm') setStatus(webllm.engine && webllm.model === settings.webllmModel ? `WebGPU · ${settings.webllmModel.split('-q4')[0]} loaded` : `WebGPU · ${settings.webllmModel.split('-q4')[0]} (loads on first message)`);
-        else setStatus(`Ollama · ${settings.ollamaModel || 'llama3.2'} @ ${(settings.ollamaUrl || 'localhost:11434').replace(/^https?:\/\//, '')}`);
+        else setStatus(webllm.model === settings.webllmModel ? `WebGPU · ${settings.webllmModel.split('-q4')[0]} loaded` : `WebGPU · ${settings.webllmModel.split('-q4')[0]} (loads on first message)`);
         el.engineBtn.innerHTML = `<span class="chip"></span><i class="fas ${ENGINE_META[settings.engine].icon}"></i><span class="lbl">${ENGINE_META[settings.engine].label}</span><i class="fas fa-chevron-down" style="font-size:.6rem;opacity:.7"></i>`;
     }
     function renderEngineMenu() {
@@ -304,22 +359,16 @@
             cfg.innerHTML = `<label>Model</label><select id="ai-webllm-model">${WEBLLM_MODELS.map(x => `<option value="${x.id}"${x.id === settings.webllmModel ? ' selected' : ''}>${x.label}</option>`).join('')}</select>
                 <div class="hint">Downloads once to your browser cache, then runs offline on your GPU. Answers are grounded in the same CV retrieval the built-in engine uses (RAG).</div>`;
             m.appendChild(cfg);
-            cfg.querySelector('#ai-webllm-model').addEventListener('change', (e) => { settings.webllmModel = e.target.value; saveJSON(SETTINGS_KEY, settings); refreshStatus(); if (settings.engine === 'webllm') loadWebLLM().catch(() => { /* surfaced in the card */ }); });
-        } else if (settings.engine === 'ollama') {
-            cfg.innerHTML = `<label>Server URL</label><input id="ai-ollama-url" value="${escapeHtml(settings.ollamaUrl || 'http://localhost:11434')}" spellcheck="false">
-                <label>Model <button type="button" id="ai-ollama-refresh" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.68rem">↻ detect</button></label>
-                <input id="ai-ollama-model" list="ai-ollama-models" value="${escapeHtml(settings.ollamaModel || 'llama3.2')}" spellcheck="false"><datalist id="ai-ollama-models"></datalist>
-                <div class="hint" id="ai-ollama-hint">Start Ollama with this site allowed as an origin:<br><code>OLLAMA_ORIGINS="${escapeHtml(location.origin)}" ollama serve</code></div>`;
-            m.appendChild(cfg);
-            cfg.querySelector('#ai-ollama-url').addEventListener('change', (e) => { settings.ollamaUrl = e.target.value.trim(); saveJSON(SETTINGS_KEY, settings); refreshStatus(); });
-            cfg.querySelector('#ai-ollama-model').addEventListener('change', (e) => { settings.ollamaModel = e.target.value.trim(); saveJSON(SETTINGS_KEY, settings); refreshStatus(); });
-            cfg.querySelector('#ai-ollama-refresh').addEventListener('click', async () => {
-                const hint = cfg.querySelector('#ai-ollama-hint');
-                try { const models = await fetchOllamaModels(); cfg.querySelector('#ai-ollama-models').innerHTML = models.map(x => `<option value="${escapeHtml(x)}">`).join(''); hint.innerHTML = models.length ? `✅ Connected · ${models.length} model(s): ${models.slice(0, 4).map(escapeHtml).join(', ')}${models.length > 4 ? '…' : ''}` : '⚠️ Connected, but no models pulled. Try <code>ollama pull llama3.2</code>'; if (models.length && !models.includes(settings.ollamaModel)) { settings.ollamaModel = models[0]; cfg.querySelector('#ai-ollama-model').value = models[0]; saveJSON(SETTINGS_KEY, settings); refreshStatus(); } }
-                catch (e) { hint.innerHTML = `❌ Can't reach Ollama (${escapeHtml(e.message)}). Make sure it's running with:<br><code>OLLAMA_ORIGINS="${escapeHtml(location.origin)}" ollama serve</code>`; }
-            });
+            cfg.querySelector('#ai-webllm-model').addEventListener('change', (e) => selectModel(e.target.value));
         }
         m.querySelectorAll('[data-engine]').forEach(b => b.addEventListener('click', () => switchEngine(b.dataset.engine)));
+    }
+    function selectModel(id) {
+        if (id === settings.webllmModel && (download.active || webllm.model === id)) return;
+        settings.webllmModel = id; saveJSON(SETTINGS_KEY, settings); refreshStatus();
+        if (settings.engine !== 'webllm') { addSystemNote(`Model set to <b>${escapeHtml(modelLabel(id))}</b> — it loads when you switch to the <b>WebGPU LLM</b> engine.`); return; }
+        if (webllm.model === id && !download.active) { announceActiveModel(modelLabel(id)); return; }
+        loadWebLLM().catch(() => { /* surfaced by finishDownload */ });
     }
     function switchEngine(k) {
         if (!ENGINE_META[k]) return;
@@ -328,11 +377,12 @@
         renderEngineMenu(); refreshStatus();
         if (k === 'webllm') {
             if (!navigator.gpu) { addSystemNote('This browser has no <b>WebGPU</b> — the in-browser LLM needs a recent Chrome or Edge on desktop. Staying on the built-in engine.'); settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); return; }
-            if (webllm.engine && webllm.model === settings.webllmModel) { addSystemNote(`Engine switched to <b>${ENGINE_META[k].title}</b> — ${escapeHtml(modelLabel(settings.webllmModel))} is already loaded.`); return; }
-            loadWebLLM().catch(() => { /* surfaced in the card */ });
+            if (webllm.model === settings.webllmModel && !download.active) { announceActiveModel(modelLabel(settings.webllmModel)); return; }
+            loadWebLLM().catch(() => { /* surfaced by finishDownload */ });
         } else if (prev !== k) {
-            if (download.active) { setChatDisabled(false); addSystemNote(`Engine switched to <b>${ENGINE_META[k].title}</b>. The model download continues in the background.`); }
-            else addSystemNote(`Engine switched to <b>${ENGINE_META[k].title}</b>.`);
+            const paused = download.active ? modelLabel(download.model) : null;
+            cancelModelLoad();
+            addSystemNote(`Engine switched to <b>${ENGINE_META[k].title}</b>.${paused ? ` The <b>${escapeHtml(paused)}</b> download was paused — what it fetched is cached, so resuming it later picks up where it stopped.` : ''}`);
         }
     }
     function addSystemNote(html) {
@@ -373,16 +423,16 @@
 
         const useLLM = settings.engine !== 'builtin';
         const steps = res.reasoning.slice();
-        if (useLLM) steps.push({ icon: 'fa-magic', text: `Handing retrieved context to ${settings.engine === 'webllm' ? settings.webllmModel.split('-q4')[0] + ' (WebGPU)' : (settings.ollamaModel || 'llama3.2') + ' (Ollama)'} as RAG context…` });
+        if (useLLM) steps.push({ icon: 'fa-magic', text: `Handing retrieved context to ${settings.webllmModel.split('-q4')[0]} (WebGPU) as RAG context…` });
 
         // 2. unfold trace
         for (let i = 0; i < steps.length; i++) {
             if (signal.aborted) break;
             stepsEl.insertAdjacentHTML('beforeend', `<div class="ai-trace__step"><i class="fas fa-circle-notch fa-spin"></i><span>${steps[i].text}</span></div>`);
             scrollToBottom();
-            await sleep(useLLM && i === steps.length - 1 ? 60 : 110 + Math.random() * 150);
+            await sleep(useLLM ? 0 : 110 + Math.random() * 150);
         }
-        await sleep(120);
+        await sleep(useLLM ? 0 : 120);
 
         let finalHtml = res.html, finalText = res.text, engineUsed = 'builtin', llmError = null;
 
@@ -390,7 +440,7 @@
         if (useLLM && !signal.aborted) {
             try {
                 const messages = buildMessages(text);
-                const stream = settings.engine === 'webllm' ? streamWebLLM(messages, signal) : streamOllama(messages, signal);
+                const stream = streamWebLLM(messages, signal);
                 let acc = '', raf = null;
                 answerEl.innerHTML = '<span class="stream-cursor"></span>';
                 for await (const chunk of stream) {
@@ -468,20 +518,56 @@
     function panelInView() { const r = el.panel.getBoundingClientRect(); return r.top < window.innerHeight * 0.7 && r.bottom > window.innerHeight * 0.3; }
 
     /* ---------------- voice ---------------- */
+    /* Every failure here used to be swallowed, so a blocked mic looked identical to a
+       dead button. Each one now says what happened and what to do about it. */
+    const VOICE_ERRORS = {
+        'not-allowed': 'Microphone access is blocked for this site. Allow it from the icon in your browser\'s address bar, then try again.',
+        'service-not-allowed': 'Your browser blocked its speech service. Check its microphone and privacy settings.',
+        'audio-capture': 'No microphone was found. Connect one, or pick one in your system sound settings.',
+        'network': 'Voice input needs a network connection — your browser transcribes speech through its own service, not on this page.',
+        'no-speech': 'I didn\'t catch anything — try again and start speaking once the mic turns red.',
+        'aborted': null  // user cancelled on purpose
+    };
     function initVoice() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) { el.mic.hidden = true; return; }
-        let rec = null, listening = false;
+        let rec = null, listening = false, cancelled = false, heard = '';
+        function setListening(on) {
+            listening = on;
+            el.mic.classList.toggle('is-listening', on);
+            el.mic.title = on ? 'Stop listening' : 'Voice input';
+            if (on) el.input.placeholder = 'Listening…';
+            else if (!el.input.disabled) el.input.placeholder = INPUT_PLACEHOLDER;
+        }
         el.mic.addEventListener('click', () => {
-            if (listening) { rec && rec.stop(); return; }
-            rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true;
-            rec.onresult = (e) => { let t = ''; for (const r of e.results) t += r[0].transcript; el.input.value = t; autoGrow(); if (e.results[e.results.length - 1].isFinal) { rec.stop(); setTimeout(() => send(t), 200); } };
-            rec.onend = () => { listening = false; el.mic.classList.remove('is-listening'); };
-            rec.onerror = () => { listening = false; el.mic.classList.remove('is-listening'); };
-            rec.start(); listening = true; el.mic.classList.add('is-listening');
+            if (listening) { cancelled = true; try { rec.stop(); } catch (e) { /* ignore */ } return; }
+            if (busy || el.input.disabled) return;
+            cancelled = false; heard = '';
+            rec = new SR();
+            rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = false;
+            rec.onstart = () => setListening(true);          // only turn red once actually live
+            rec.onresult = (e) => {
+                let t = ''; for (const r of e.results) t += r[0].transcript;
+                heard = t.trim(); el.input.value = t; autoGrow();
+            };
+            rec.onerror = (e) => {
+                const msg = VOICE_ERRORS[e.error];
+                if (msg) addSystemNote(`<i class="fas fa-microphone-slash"></i> ${msg}`);
+                else if (!cancelled && e.error) addSystemNote(`<i class="fas fa-microphone-slash"></i> Voice input failed (${escapeHtml(e.error)}).`);
+                cancelled = true;                             // never auto-send after a failure
+            };
+            // Sending on end (not on the final result) keeps a deliberate stop from firing one off.
+            rec.onend = () => { setListening(false); if (!cancelled && heard) send(heard); };
+            try { rec.start(); }
+            catch (err) { setListening(false); addSystemNote(`<i class="fas fa-microphone-slash"></i> Couldn't start voice input (${escapeHtml(err.message || err.name || String(err))}).`); }
         });
     }
-    function autoGrow() { el.input.style.height = 'auto'; el.input.style.height = Math.min(120, el.input.scrollHeight) + 'px'; }
+    function autoGrow() {
+        el.input.style.height = 'auto';
+        const h = el.input.scrollHeight;
+        el.input.style.height = Math.min(120, h) + 'px';
+        el.input.style.overflowY = h > 120 ? 'auto' : 'hidden';
+    }
 
     /* ---------------- init ---------------- */
     function init() {
@@ -493,10 +579,10 @@
         };
         if (!el.panel || !el.body || !window.AjithAI) return;
         engine = AjithAI.createEngine();
-        settings = Object.assign({ engine: 'builtin', ollamaUrl: 'http://localhost:11434', ollamaModel: 'llama3.2', webllmModel: WEBLLM_MODELS[0].id }, loadJSON(SETTINGS_KEY, {}));
-        try { const qe = new URLSearchParams(location.search).get('engine'); if (qe && ENGINE_META[qe]) settings.engine = qe; } catch (e) { /* ignore */ }
+        settings = Object.assign({ engine: 'builtin', webllmModel: WEBLLM_MODELS[0].id }, loadJSON(SETTINGS_KEY, {}));
         try { const qe = new URLSearchParams(location.search).get('engine'); if (qe && ENGINE_META[qe]) settings.engine = qe; } catch (e) { /* ignore */ }
         if (!ENGINE_META[settings.engine]) settings.engine = 'builtin';
+        if (!WEBLLM_MODELS.some(m => m.id === settings.webllmModel)) settings.webllmModel = WEBLLM_MODELS[0].id;
         history = loadJSON(STORE_KEY, []);
         if (!Array.isArray(history)) history = [];
 
@@ -505,7 +591,17 @@
         else welcome();
         setChips(DEFAULT_CHIPS);
         renderEngineMenu(); refreshStatus();
-        if (settings.engine === 'webllm') { if (!navigator.gpu) { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); } else addSystemNote(`<b>WebGPU LLM</b> selected — ${escapeHtml(modelLabel(settings.webllmModel))} loads on your first message, or <a href="#" id="ai-load-now">load it now</a>.`); const ln = $('ai-load-now'); if (ln) ln.addEventListener('click', (e) => { e.preventDefault(); loadWebLLM().catch(() => {}); }); }
+        if (settings.engine === 'webllm') {
+            if (!navigator.gpu) { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); }
+            else if (isCached(settings.webllmModel)) {
+                // Weights are already in the browser cache — restore them now so the first
+                // message doesn't pay for the GPU compile.
+                loadWebLLM().catch(() => { /* surfaced by finishDownload */ });
+            } else {
+                addSystemNote(`<b>WebGPU LLM</b> selected — ${escapeHtml(modelLabel(settings.webllmModel))} loads on your first message, or <a href="#" id="ai-load-now">load it now</a>.`);
+                const ln = $('ai-load-now'); if (ln) ln.addEventListener('click', (e) => { e.preventDefault(); loadWebLLM().catch(() => { /* surfaced by finishDownload */ }); });
+            }
+        }
         requestAnimationFrame(() => scrollToBottom(true));
 
         // events

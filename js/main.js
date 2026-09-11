@@ -25,7 +25,7 @@
     }
 
     /* ---------- Hero typing ---------- */
-    const ROLES = ['AI & autonomous-agent developer', 'LLM & RAG architect', 'full-stack software engineer', 'FinTech & mobile developer', 'passionate musician'];
+    const ROLES = ['AI & LLM engineer', 'Full-stack software engineer', 'RAG & agent architect', 'Mobile & FinTech developer'];
     function initTyping() {
         const el = $('#typing-text'); if (!el) return;
         if (reduceMotion) { el.textContent = ROLES[0]; return; }

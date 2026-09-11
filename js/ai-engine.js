@@ -34,7 +34,6 @@
             email2: 'me@agopi.in',
             phone: '(+971) 555-166-278',
             website: 'https://agopi.in',
-            cv: 'Ajith - CV.pdf',
             socials: {
                 github: 'https://github.com/ajithgopi',
                 linkedin: 'https://www.linkedin.com/in/ahgopi/',
@@ -65,7 +64,7 @@
                 grade: '7.7 CGPA'
             },
             languages: ['English (fluent, professional working language)'],
-            interests: ['Music — a passionate musician', 'Runs the YouTube channel Distro Studios', 'IoT and multimedia automation', 'Building game-server control panels'],
+            interests: ['Runs the YouTube channel Distro Studios', 'IoT and multimedia automation', 'Building game-server control panels'],
             openTo: 'senior full-stack, AI architecture and LLM-integration roles (on-site in Dubai, remote, or relocation for the right opportunity)'
         },
 
@@ -174,8 +173,8 @@
             {
                 id: 'site', name: 'This portfolio & AI assistant', period: '2026', company: 'Personal', category: ['ai', 'web'],
                 aliases: ['this website', 'this site', 'portfolio site', 'this page', 'this chatbot', 'this assistant', 'this bot', 'agopi.in'],
-                summary: 'Static site on GitHub Pages with canvas-rendered 3D neural visuals and a fully client-side AI assistant (intent classifier + BM25 retrieval over the CV, with optional WebGPU in-browser LLM or local Ollama backends).',
-                stack: ['Vanilla JS', 'Canvas 2D', 'Bootstrap 5', 'WebGPU / WebLLM (optional)', 'Ollama (optional)'],
+                summary: 'Static site on GitHub Pages with canvas-rendered 3D neural visuals and a fully client-side AI assistant (intent classifier + BM25 retrieval over the CV, with an optional WebGPU in-browser LLM backend).',
+                stack: ['Vanilla JS', 'Canvas 2D', 'Bootstrap 5', 'WebGPU / WebLLM (optional)'],
                 deploy: 'GitHub Pages'
             }
         ],
@@ -234,7 +233,7 @@
     const STOP = new Set(('a an the and or but of to in on at for with by from as is are was were be been being am do does did doing have has had having it its this that these those he him his she her they them their you your yours we our ours me my mine i what which who whom whose when where why how much many can could would should shall will may might must about into over under again further then once here there all any both each few more most other some such no nor not only own same so than too very s t just don now tell please give show list know does').split(' '));
 
     const KNOWN_TECH = 'rust java ruby rails scala elixir erlang haskell clojure csharp dotnet net django spring springboot unity unreal blockchain solidity web3 terraform ansible svelte solid remix deno bun perl cobol fortran matlab r julia swiftui objective-c objc xamarin ionic cordova capacitor electron tauri wordpress drupal magento shopify salesforce sap oracle sqlite cassandra couchdb elasticsearch elastic solr rabbitmq nats kafka spark hadoop airflow dbt snowflake bigquery redshift databricks tensorflow keras jax huggingface transformers llamaindex pinecone weaviate qdrant milvus supabase firebase heroku vercel netlify cloudflare digitalocean linode gcp azure openshift nomad consul vault grafana prometheus datadog sentry newrelic splunk jest mocha cypress playwright selenium puppeteer storybook webpack vite rollup esbuild babel eslint prettier graphql grpc trpc prisma sequelize typeorm knex drizzle mongoose flask fastapi tornado celery redux mobx zustand recoil tailwind bootstrap sass less styled figma sketch photoshop illustrator blender unity3d arduino raspberry esp32 mqtt zigbee opencv yolo cuda metal vulkan opengl webgl threejs three d3 chartjs highcharts stripe paypal razorpay twilio sendgrid mailchimp auth0 okta keycloak oauth jwt saml ldap kerberos nginx apache caddy haproxy traefik istio linkerd envoy';
-const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thanks thank yes no okay sure please what which who where when why how many much long years year experience experienced skills skill technology technologies tech stack projects project work worked working build built company companies job jobs role roles contact email phone reach hire hiring available availability salary location live based education degree university studied study about tell more detail details compare versus difference better best favourite favorite favorite languages language speak spoken hobbies hobby interests interest music remote relocate relocation visa notice period team lead leadership manage management strengths strength weakness weaknesses why should recommend summary overview background career history resume cv download link links portfolio website site chatbot assistant engine model running browser local offline joke funny time timezone current currently latest recent first last previous next also again another something anything everything nothing know knows familiar proficient expert level rate rating certification certifications certified achievement achievements award awards open opportunities opportunity freelance contract full time part senior junior mid principal architect engineer developer programmer fullstack frontend backend mobile cloud devops database data science machine learning artificial intelligence learning models model apps app application applications platform platforms enterprise startup banking finance fintech healthcare edtech').split(' ');
+const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thanks thank yes no okay sure please what which who where when why how many much long years year experience experienced skills skill technology technologies tech stack projects project work worked working build built company companies job jobs role roles contact email phone reach hire hiring available availability salary location live based education degree university studied study about tell more detail details compare versus difference better best favourite favorite favorite languages language speak spoken hobbies hobby interests interest remote relocate relocation visa notice period team lead leadership manage management strengths strength weakness weaknesses why should recommend summary overview background career history resume cv download link links portfolio website site chatbot assistant engine model running browser local offline joke funny time timezone current currently latest recent first last previous next also again another something anything everything nothing know knows familiar proficient expert level rate rating certification certifications certified achievement achievements award awards open opportunities opportunity freelance contract full time part senior junior mid principal architect engineer developer programmer fullstack frontend backend mobile cloud devops database data science machine learning artificial intelligence learning models model apps app application applications platform platforms enterprise startup banking finance fintech healthcare edtech').split(' ');
 
     function normalize(str) {
         return String(str || '')
@@ -342,7 +341,7 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
         docs.push({ id: 'profile', type: 'profile', title: `${p.name} — ${p.title}`, text: [p.headline, ...p.summary, ...p.competencies, 'based in ' + p.location.short, 'from ' + p.location.origin].join(' '), section: '#about' });
         docs.push({ id: 'education', type: 'education', title: 'Education', text: `${p.education.degree} ${p.education.school} ${p.education.place} ${p.education.years} ${p.education.grade} bachelor computer application college university degree graduate study studied`, section: '#experience' });
         docs.push({ id: 'contact', type: 'contact', title: 'Contact', text: `contact email ${p.email} ${p.email2} phone ${p.phone} linkedin github stackoverflow youtube instagram twitter website ${p.website} reach hire message call`, section: '#contact' });
-        docs.push({ id: 'interests', type: 'interests', title: 'Interests', text: 'hobbies interests music musician youtube channel distro studios iot multimedia automation game server panels personal life outside work fun', section: '#about' });
+        docs.push({ id: 'interests', type: 'interests', title: 'Interests', text: 'hobbies interests youtube channel distro studios iot multimedia automation game server panels personal life outside work fun', section: '#about' });
         for (const e of KB.experience) docs.push({ id: 'exp:' + e.id, type: 'experience', title: `${e.role} @ ${e.company}`, text: [e.company, e.via || '', e.role, e.location, e.summary, ...e.highlights, ...e.stack, ...e.aliases].join(' '), section: '#experience', ref: e });
         for (const pr of KB.projects) docs.push({ id: 'proj:' + pr.id, type: 'project', title: pr.name, text: [pr.name, pr.period, pr.company, pr.summary, ...pr.stack, pr.deploy, ...pr.aliases, ...pr.category].join(' '), section: '#projects', ref: pr });
         for (const s of KB.skills) docs.push({ id: 'skill:' + s.id, type: 'skill', title: s.name, text: [s.name, s.note, ...s.aliases, s.cat].join(' '), section: '#skills', ref: s });
@@ -486,7 +485,7 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
         { id: 'tech_years', re: [/\bhow (many|much) (years?|experience|time|long)\b/, /\bhow long\b/, /\byears? (of|with|in|on|using)\b/, /\bsince when\b/, /\b(experience|years) (with|in|on|using)\b/], kw: { years: 2, year: 1.5, long: 1.5, since: 1 } },
         { id: 'compare', re: [/\b(vs\.?|versus|compared? (to|with)|or|better|prefer|preference|difference between|rather)\b/], kw: { vs: 3, versus: 3, compare: 3, compared: 3, prefer: 2.5, preference: 2.5, better: 1.5, difference: 2, rather: 1.5, or: 0.5 } },
         { id: 'languages_spoken', boost: 1, re: [/\b(spoken|speak|speaks|speaking|fluent|fluency|native|mother tongue|human languages?|languages? (does|he|ajith) (speak|know))\b/, /\b(english|malayalam|hindi|arabic|tamil)\b/], kw: { speak: 3, speaks: 3, spoken: 3, fluent: 3, fluency: 3, english: 2.5, malayalam: 3, hindi: 3, arabic: 3, tongue: 2 } },
-        { id: 'hobbies', re: [/\b(hobb(y|ies)|interests?|free time|spare time|outside (of )?work|fun|passion|passionate|music|musician|instrument|guitar|piano|sing|singer|band|youtube|videos?|games?|gaming|sports?|travel|read|reading|weekend|personal life|for fun)\b/], kw: { hobby: 3, hobbies: 3, interests: 2.5, interest: 1.5, music: 3, musician: 3, instrument: 3, guitar: 3, piano: 3, youtube: 2, fun: 2, passion: 2, passionate: 2, weekend: 2, sports: 2, gaming: 2, travel: 1 } },
+        { id: 'hobbies', re: [/\b(hobb(y|ies)|interests?|free time|spare time|outside (of )?work|fun|passion|passionate|youtube|videos?|games?|gaming|sports?|travel|read|reading|weekend|personal life|for fun)\b/], kw: { hobby: 3, hobbies: 3, interests: 2.5, interest: 1.5, youtube: 2, fun: 2, passion: 2, passionate: 2, weekend: 2, sports: 2, gaming: 2, travel: 1 } },
         { id: 'personal', re: [/\b(age|old|birthday|born|married|marriage|wife|husband|girlfriend|boyfriend|single|relationship|religion|religious|caste|family|kids|children|salary history|political|politics|nationality|passport|height|weight|health)\b/], kw: { age: 3, old: 2, birthday: 3, born: 2.5, married: 3, marriage: 3, wife: 3, husband: 3, girlfriend: 3, boyfriend: 3, single: 2, religion: 3, religious: 3, family: 2, kids: 2.5, children: 2.5, nationality: 3, passport: 3, politics: 3, political: 3 } },
         { id: 'cv', re: [/\b(cv|resume|résumé|download|pdf|print|copy of)\b/], kw: { cv: 3, resume: 3, download: 3, pdf: 3, print: 2 } },
         { id: 'certifications', re: [/\b(certif(y|ied|ication|ications|icate|icates)|credential|credentials|badge|badges|licen[cs]e|accredit)/], kw: { certification: 3, certifications: 3, certified: 3, certificate: 3, credentials: 3, badges: 2 } },
@@ -545,7 +544,6 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
         email: { label: 'Email Ajith', icon: 'fa-envelope', href: 'mailto:' + P.email },
         linkedin: { label: 'LinkedIn', icon: 'fa-linkedin', brand: true, href: P.socials.linkedin },
         github: { label: 'GitHub', icon: 'fa-github', brand: true, href: P.socials.github },
-        cv: { label: 'Download CV', icon: 'fa-file-pdf', href: P.cv, download: true },
         aihub: { label: 'AI engineering', icon: 'fa-magic', href: '#ai-hub' }
     };
 
@@ -603,13 +601,13 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                 md = `Take care! 👋 If you'd like to follow up with ${first} directly, his email is ${link(P.email, 'mailto:' + P.email)}.`; actions = [ACT.email, ACT.linkedin]; break;
 
             case 'identity_bot':
-                md = `I'm **${first}'s AI assistant** — a small reasoning engine that ${first} built to run **100% client-side** on this static site.\n\n- **No server, no API keys** — nothing you type leaves your browser\n- Pipeline: spell-correction → intent classification → entity extraction → **BM25 retrieval** over his CV → templated answer composition\n- Conversation memory lets you ask follow-ups like *"and Node?"*\n- Optional engines (top-right menu): run a real LLM **in your browser via WebGPU** (WebLLM), or point me at a **local Ollama** — both use my retrieval as RAG context\n\nIn other words: I'm a demo of the kind of retrieval-first assistant ${first} builds for clients.`;
+                md = `I'm **${first}'s AI assistant** — a small reasoning engine that ${first} built to run **100% client-side** on this static site.\n\n- **No server, no API keys** — nothing you type leaves your browser\n- Pipeline: spell-correction → intent classification → entity extraction → **BM25 retrieval** over his CV → templated answer composition\n- Conversation memory lets you ask follow-ups like *"and Node?"*\n- Optional engine (top-right menu): run a real open-weight LLM **in your browser via WebGPU** (WebLLM) — it uses my retrieval as RAG context\n\nIn other words: I'm a demo of the kind of retrieval-first assistant ${first} builds for clients.`;
                 followups = ['What AI work has Ajith done?', 'How was this site built?', 'Show me his projects']; actions = [ACT.aihub]; topic = 'ai'; break;
 
             case 'identity_person': {
                 const cur = KB.experience[0];
                 md = `**${P.name}** is a ${P.title} based in ${P.location.short}, with ${totalYearsLabel()} of professional experience.\n\n${P.headline}\n\n- Currently **${cur.role}** at **${cur.company}** (via ${cur.via})\n- Previously full-stack at **reach52** (Singapore, remote) and lead developer at **Tutorhow** (India)\n- Focus areas: React/Next.js, Node.js microservices, MongoDB/SQL, AWS, and **AI/LLM integrations** (RAG, agents, Claude/OpenAI/Ollama)\n- ${P.education.degree}, ${P.education.school} (${P.education.grade})`;
-                followups = FOLLOW.experience; actions = [ACT.experience, ACT.cv]; topic = 'experience'; break;
+                followups = FOLLOW.experience; actions = [ACT.experience]; topic = 'experience'; break;
             }
 
             case 'experience_total': {
@@ -626,7 +624,7 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
 
             case 'experience':
                 md = `Here's ${first}'s career at a glance — **${totalYearsLabel()}** across banking, healthcare data and edtech:\n\n${KB.experience.map(e => `- ${expLine(e).replace(/\n/g, ' — ')}`).join('\n')}`;
-                followups = FOLLOW.experience; actions = [ACT.experience, ACT.cv]; topic = 'experience'; break;
+                followups = FOLLOW.experience; actions = [ACT.experience]; topic = 'experience'; break;
 
             case 'company': {
                 const e = companies[0];
@@ -704,7 +702,7 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                 else if (/\b(visa|permit|authori|sponsor)\b/.test(text)) md = `${first} is currently employed in **Dubai, UAE** (via Synechron for Emirates NBD). For work-authorisation or sponsorship specifics in another country, please ${link('reach out to him directly', 'mailto:' + P.email)}.`;
                 else if (/\b(freelance|contract|part)\b/.test(text)) md = `${first} is primarily open to ${P.openTo}. For contract or freelance engagements, the best route is a direct message — ${link(P.email, 'mailto:' + P.email)}.`;
                 else md = `Yes — ${first} is open to **${P.openTo}**.\n\n- **Currently:** ${KB.experience[0].role} at ${KB.experience[0].company}, Dubai\n- **Sweet spot:** React/Next.js + Node.js platforms, cloud microservices on AWS, and AI/LLM integrations\n- **Remote-ready:** ~3 years fully remote with reach52 (Singapore)\n\nDrop him a line at ${link(P.email, 'mailto:' + P.email)} or on ${link('LinkedIn', P.socials.linkedin)}.`;
-                followups = ['Why should I hire him?', 'Is he open to remote work?', 'Download his CV']; actions = [ACT.email, ACT.linkedin, ACT.cv]; topic = 'contact'; break;
+                followups = ['Why should I hire him?', 'Is he open to remote work?', 'What are his strengths?']; actions = [ACT.email, ACT.linkedin]; topic = 'contact'; break;
 
             case 'salary':
                 md = `I don't have compensation details — and ${first} would rather discuss that in context of the role. Please ${link('email him', 'mailto:' + P.email)} with the opportunity and he'll respond promptly. 💬`;
@@ -729,7 +727,7 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
 
             case 'strengths':
                 md = `A few things that make ${first} stand out:\n\n- **Full-stack depth** — ${totalYearsLabel()} across React/Next.js, Node.js, MongoDB/SQL and AWS, in banking, healthcare and edtech\n- **AI-native workflow** — ships with Claude/OpenAI/Ollama in the loop: RAG pipelines, agentic automation and in-sprint AI tooling (he built the assistant you're using)\n- **Ownership** — led a 5-person team, managed deployments and CI/CD end-to-end\n- **Adaptable** — ${P.competencies[2].toLowerCase()}; comfortable remote and cross-time-zone\n- **Product sense** — UI/UX-minded, builds high-fidelity interfaces, not just APIs`;
-                followups = ['Any weaknesses?', 'What AI work has he done?', 'How do I contact him?']; actions = [ACT.cv, ACT.email]; break;
+                followups = ['Any weaknesses?', 'What AI work has he done?', 'How do I contact him?']; actions = [ACT.email]; break;
 
             case 'weakness':
                 md = `Honest answer: his CV doesn't advertise weaknesses 😄 — but a fair read is that ${first}'s depth is in the **JavaScript/TypeScript + Node + React** ecosystem and AWS; tools like Azure/GCP, Golang or Kubernetes are working-knowledge rather than expert level. He's known for picking up new stacks fast, so treat those as growth areas rather than gaps.`;
@@ -737,7 +735,7 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
 
             case 'ai_expertise': {
                 const ai = KB.skills.find(s => s.id === 'ai'), ml = KB.skills.find(s => s.id === 'ml');
-                md = `🤖 AI is a core part of how ${first} works, not a side project:\n\n${skillLine(ai)}\n\n${skillLine(ml)}\n\n**In practice:**\n- In-sprint AI automation and Claude-assisted development at **Emirates NBD** (corporate banking)\n- Custom **RAG pipelines** with vector search (Chroma/FAISS) and context-aware document retrieval\n- Agentic workflows that write, audit and optimise code and process unstructured business data\n- This assistant — a retrieval-first engine with optional WebGPU/Ollama LLM backends`;
+                md = `🤖 AI is a core part of how ${first} works, not a side project:\n\n${skillLine(ai)}\n\n${skillLine(ml)}\n\n**In practice:**\n- In-sprint AI automation and Claude-assisted development at **Emirates NBD** (corporate banking)\n- Custom **RAG pipelines** with vector search (Chroma/FAISS) and context-aware document retrieval\n- Agentic workflows that write, audit and optimise code and process unstructured business data\n- This assistant — a retrieval-first engine with an optional WebGPU LLM backend`;
                 followups = FOLLOW.ai; actions = [ACT.aihub]; topic = 'ai'; break;
             }
 
@@ -823,7 +821,7 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                 followups = ['What programming languages does he know?', 'Where is he based?']; break;
 
             case 'hobbies':
-                md = `Outside of code, ${first} is a **passionate musician** 🎸 and runs the YouTube channel ${link('Distro Studios', P.socials.youtube)}. He also tinkers with **IoT and multimedia automation** and has built game-server control panels for fun — the kind of side projects that keep his engineering curiosity sharp.`;
+                md = `Outside of code, ${first} runs the YouTube channel ${link('Distro Studios', P.socials.youtube)}. He also tinkers with **IoT and multimedia automation** and has built game-server control panels for fun — the kind of side projects that keep his engineering curiosity sharp.`;
                 followups = ['What is his YouTube channel?', 'Tell me about his projects', 'How do I contact him?']; actions = [{ label: 'YouTube', icon: 'fa-youtube', brand: true, href: P.socials.youtube }]; break;
 
             case 'personal':
@@ -831,8 +829,8 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                 followups = FOLLOW.general; break;
 
             case 'cv':
-                md = `📄 You can ${link('download Ajith\'s CV (PDF)', P.cv)} directly. For a 30-second version: ${totalYearsLabel()} full-stack + AI engineer, React/Next.js · Node.js · MongoDB/SQL · AWS, currently at Emirates NBD in Dubai.`;
-                followups = ['Summarise his experience', 'What is his tech stack?', 'How do I contact him?']; actions = [ACT.cv, ACT.linkedin]; break;
+                md = `📄 There's no CV download on this site — but I know it inside out, so ask me about any role, skill or project and I'll answer from it.\n\nThe 30-second version: ${totalYearsLabel()} full-stack + AI engineer, React/Next.js · Node.js · MongoDB/SQL · AWS, currently at Emirates NBD in Dubai. For a copy, ${link('email him', 'mailto:' + P.email)} directly.`;
+                followups = ['Summarise his experience', 'What is his tech stack?', 'How do I contact him?']; actions = [ACT.email, ACT.linkedin]; break;
 
             case 'achievements':
                 md = `Some highlights from ${first}'s career:\n\n- Building **corporate banking** deal and RM-management platforms at Emirates NBD with AI-assisted, in-sprint automation\n- Shipped **reach52 Insights**, an analytics platform used by global healthcare clients, on AWS EKS with full CI/CD\n- **Led a 5-person team** at Tutorhow, delivering a PWA lead system, an online-class platform and a white-labelled mobile app\n- Published **Gold Vault Tracker**, a native iOS app with WidgetKit and biometric auth\n- ${totalYearsLabel()} without missing a delivery — ${P.competencies[3].toLowerCase()}`;
@@ -843,7 +841,7 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                 followups = FOLLOW.general; break;
 
             case 'site_meta':
-                md = `This site is a **static build on GitHub Pages** — no frameworks, no build step:\n\n- Vanilla JS + Bootstrap 5 grid, custom design system with glass surfaces and animated gradient borders\n- The hero background is a **3D neural constellation** rendered on a 2D canvas (perspective projection, k-nearest edges, signal pulses that react when I'm thinking)\n- This assistant is fully client-side; optional WebGPU/Ollama engines are loaded on demand\n\nSource lives at ${link('github.com/ajithgopi/ajithgopi.github.io', 'https://github.com/ajithgopi/ajithgopi.github.io')}.`;
+                md = `This site is a **static build on GitHub Pages** — no frameworks, no build step:\n\n- Vanilla JS + Bootstrap 5 grid, custom design system with glass surfaces and animated gradient borders\n- The hero background is a **3D neural constellation** rendered on a 2D canvas (perspective projection, k-nearest edges, signal pulses that react when I'm thinking)\n- This assistant is fully client-side; the optional WebGPU engine is loaded on demand\n\nSource lives at ${link('github.com/ajithgopi/ajithgopi.github.io', 'https://github.com/ajithgopi/ajithgopi.github.io')}.`;
                 followups = ['Who are you?', 'What AI work has Ajith done?']; actions = [ACT.github]; break;
 
             case 'industry': {
@@ -1019,13 +1017,13 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
 
         function reset() { memory.pending = null; memory.lastTopic = null; memory.lastSkills = []; memory.lastCompany = null; memory.lastProject = null; memory.turns = 0; memory.lastIntent = null; }
 
-        /* Compact, LLM-friendly context for the optional WebGPU / Ollama engines */
+        /* Compact, LLM-friendly context for the optional WebGPU engine */
         function buildSystemPrompt(query) {
             const p = KB.profile;
             const top = index.search(query || '', 6).map(r => r.doc);
             const facts = [
                 `You are "${p.first}'s AI Assistant" on ${p.name}'s portfolio website. Answer questions about ${p.name} (he/him) for recruiters and visitors. Be concise, friendly and factual. Use short markdown (bold, bullet lists). Never invent facts; if something is not in the profile, say so and suggest emailing ${p.email}. Do not share personal details beyond the professional profile. Today is ${new Date().toDateString()}.`,
-                `PROFILE: ${p.name}, ${p.title}, based in ${p.location.short} (from ${p.location.origin}). Total experience ${totalYearsLabel()} since ${fmtYm(p.careerStart)}. Email ${p.email}, phone ${p.phone}, LinkedIn ${p.socials.linkedin}, GitHub ${p.socials.github}. CV: ${p.website}/${encodeURI(p.cv)}. Education: ${p.education.degree}, ${p.education.school}, ${p.education.years}, ${p.education.grade}. Open to: ${p.openTo}. Interests: ${p.interests.join('; ')}.`,
+                `PROFILE: ${p.name}, ${p.title}, based in ${p.location.short} (from ${p.location.origin}). Total experience ${totalYearsLabel()} since ${fmtYm(p.careerStart)}. Email ${p.email}, phone ${p.phone}, LinkedIn ${p.socials.linkedin}, GitHub ${p.socials.github}. Education: ${p.education.degree}, ${p.education.school}, ${p.education.years}, ${p.education.grade}. Open to: ${p.openTo}. Interests: ${p.interests.join('; ')}.`,
                 `SUMMARY: ${p.summary.join(' ')}`,
                 `EXPERIENCE: ` + KB.experience.map(e => `${e.role} at ${e.company}${e.via ? ' via ' + e.via : ''}, ${e.location}, ${fmtYm(e.start)}–${fmtYm(e.end)}: ${e.highlights.join('; ')}. Stack: ${e.stack.join(', ')}.`).join(' | '),
                 `PROJECTS: ` + KB.projects.map(pr => `${pr.name} (${pr.period}): ${pr.summary} Stack: ${pr.stack.join(', ')}. Deployed: ${pr.deploy}.`).join(' | '),

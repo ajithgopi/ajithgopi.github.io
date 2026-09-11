@@ -52,7 +52,8 @@
             this.canvas.style.width = w + 'px'; this.canvas.style.height = h + 'px';
             this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
             this.radius = Math.min(w, h) * (w < 768 ? 0.42 : 0.36);
-            this.center = { x: w < 992 ? w * 0.5 : w * 0.62, y: h * 0.48 };
+            // keep the constellation behind the assistant panel, away from the copy column
+            this.center = { x: w < 992 ? w * 0.5 : w * 0.7, y: w < 992 ? h * 0.55 : h * 0.48 };
             this.focal = Math.max(w, h) * 0.9;
         }
         buildGraph() {
@@ -122,7 +123,7 @@
             this.pulses.push({ a: flip ? e.b : e.a, b: flip ? e.a : e.b, t: 0, speed: 0.4 + Math.random() * 0.6, color: this.nodes[e.a].color, hops: 1 + Math.floor(Math.random() * 3) });
         }
         spawnToken(node) {
-            if (this.tokens.length > 7) return;
+            if (this.w < 992 || this.tokens.length > 5) return; // floating labels only where they can't sit over text
             this.tokens.push({ text: this.terms[Math.floor(Math.random() * this.terms.length)], node, life: 1, dy: 0, color: node.color });
         }
         project() {
