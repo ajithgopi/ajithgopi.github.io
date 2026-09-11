@@ -17,11 +17,15 @@
     const MAX_HISTORY = 60;
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    /* `thinks: true` — the model natively emits a <think>…</think> chain of thought,
+       so the trace can stream the model's own reasoning instead of scripted steps. */
     const WEBLLM_MODELS = [
         { id: 'SmolLM2-360M-Instruct-q4f16_1-MLC', label: 'SmolLM2 360M (tiny · ~250 MB)' },
         { id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 0.5B (fast · ~400 MB)' },
+        { id: 'Qwen3-0.6B-q4f16_1-MLC', label: 'Qwen3 0.6B (thinking · ~450 MB)', thinks: true },
         { id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC', label: 'Llama 3.2 1B (~700 MB)' },
-        { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 1.5B (best · ~1 GB)' }
+        { id: 'Qwen3-1.7B-q4f16_1-MLC', label: 'Qwen3 1.7B (thinking · ~1.1 GB)', thinks: true },
+        { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 1.5B (~1 GB)' }
     ];
     const ENGINE_META = {
         builtin: { label: 'Built-in', icon: 'fa-microchip', title: 'Built-in reasoning', desc: 'Instant, offline. Intent + entity + BM25 retrieval over the CV.' },
@@ -63,11 +67,30 @@
         if (!actions || !actions.length) return '';
         return `<div class="action-chips">${actions.map(a => `<a class="action-chip" href="${escapeHtml(a.href)}"${/^https?:/.test(a.href) ? ' target="_blank" rel="noopener"' : ''}${a.download ? ' download' : ''}><i class="${a.brand ? 'fab' : 'fas'} ${a.icon}"></i>${escapeHtml(a.label)}</a>`).join('')}</div>`;
     }
+    function thoughtHtml(text, live) {
+        return `<div class="ai-thought${live ? ' is-live' : ''}"><i class="fas fa-brain"></i><div class="ai-thought__txt">${escapeHtml(text)}</div></div>`;
+    }
     function traceHtml(steps, meta, open) {
         return `<details class="ai-trace"${open ? ' open' : ''}>
-            <summary class="ai-trace__summary"><i class="fas fa-chevron-right chev"></i><i class="fas fa-lightbulb"></i> ${escapeHtml(meta.title || 'Reasoning')}<span class="meta">${escapeHtml(meta.sub || '')}</span></summary>
-            <div class="ai-trace__steps">${steps.map(s => `<div class="ai-trace__step done"><i class="fas ${s.icon || 'fa-check'}"></i><span>${s.text}</span></div>`).join('')}</div>
+            <summary class="ai-trace__summary"><i class="fas fa-chevron-right chev"></i><i class="fas ${meta.thought ? 'fa-brain' : 'fa-lightbulb'}"></i> ${escapeHtml(meta.title || 'Reasoning')}<span class="meta">${escapeHtml(meta.sub || '')}</span></summary>
+            <div class="ai-trace__steps">${steps.map(s => `<div class="ai-trace__step done"><i class="fas ${s.icon || 'fa-check'}"></i><span>${s.text}</span></div>`).join('')}${meta.thought ? thoughtHtml(meta.thought, false) : ''}</div>
         </details>`;
+    }
+    /* Real chain of thought straight from the model. Reasoning models (Qwen3) emit
+       <think>…</think> on their own; the others are asked for the same shape in the
+       system prompt. Some chat templates pre-fill the opening tag, so a lone closing
+       tag counts too. A half-written tag at the tail is hidden until it completes. */
+    const stripPartialTag = (s) => s.replace(/<\/?[a-z]*$/i, '');
+    function splitThinking(raw) {
+        const s = String(raw || '');
+        const open = s.indexOf('<think>'), close = s.indexOf('</think>');
+        if (close >= 0) {
+            const from = open >= 0 && open < close ? open + 7 : 0;
+            const before = open > 0 ? s.slice(0, open) : '';
+            return { thought: s.slice(from, close), answer: before + s.slice(close + 8), thinking: false };
+        }
+        if (open >= 0) return { thought: stripPartialTag(s.slice(open + 7)), answer: s.slice(0, open), thinking: true };
+        return { thought: '', answer: stripPartialTag(s), thinking: false };
     }
     function userMsgHtml(text) {
         return `<div class="chat-msg user"><div class="chat-avatar"><i class="fas fa-user"></i></div><div class="chat-bubble-wrap"><div class="chat-bubble">${escapeHtml(text)}</div></div></div>`;
@@ -98,7 +121,7 @@
         if (entry.role === 'system') { el.body.insertAdjacentHTML('beforeend', `<div class="chat-msg system"><div class="chat-bubble">${entry.html}</div></div>`); return; }
         const id = 'm' + Math.random().toString(36).slice(2, 8);
         const meta = entry.meta || {};
-        const trace = meta.reasoning && meta.reasoning.length ? traceHtml(meta.reasoning, { title: meta.traceTitle || 'Reasoning', sub: meta.traceSub || '' }, false) : '';
+        const trace = (meta.reasoning && meta.reasoning.length) || meta.thought ? traceHtml(meta.reasoning || [], { title: meta.traceTitle || 'Reasoning', sub: meta.traceSub || '', thought: meta.thought }, false) : '';
         el.body.insertAdjacentHTML('beforeend', `<div class="chat-msg bot" id="${id}"><div class="chat-avatar"><i class="fas fa-brain"></i></div><div class="chat-bubble-wrap"><div class="chat-bubble">${trace}<div class="chat-answer">${entry.html}</div><div class="chat-extra">${actionChipsHtml(meta.actions)}</div></div><div class="chat-actions">${actionsBarHtml(entry)}</div></div></div>`);
         bindActions($(id), entry);
         // animate bars
@@ -167,14 +190,85 @@
     }
 
     /* ---------------- LLM adapters ---------------- */
-    function buildMessages(userText) {
-        const sys = engine.buildSystemPrompt(userText);
-        const msgs = [{ role: 'system', content: sys }];
-        const turns = history.filter(h => h.role === 'user' || h.role === 'bot').slice(-6);
-        for (const t of turns) msgs.push({ role: t.role === 'user' ? 'user' : 'assistant', content: (t.text || '').slice(0, 1200) });
-        if (!turns.length || turns[turns.length - 1].text !== userText) msgs.push({ role: 'user', content: userText });
+    function buildMessages(userText, grounded) {
+        /* The retrieved context rides in the final USER turn, not the system prompt —
+           see buildPrompt() in ai-engine.js for why. */
+        const prompt = engine.buildPrompt(userText, grounded);
+        const offDomain = !!(grounded && grounded.offDomain);
+        const wantThinking = !offDomain, native = modelThinks(settings.webllmModel);
+        /* Models that don't reason natively are asked for the same <think> shape, so the
+           trace shows what the model actually worked through rather than a script. */
+        const nudge = wantThinking && !native
+            ? '\n\nTHINKING: start your reply with a <think> block — two or three short sentences working out what is being asked and which facts you were given answer it. Close it with </think>, then write the visitor-facing answer. Never mention the block or repeat it in the answer.'
+            : '';
+        const msgs = [{ role: 'system', content: prompt.system + nudge }];
+        /* Earlier turns carry the plain question, not its context block — replaying six
+           retrieval dumps would bury the current one. */
+        const turns = history.filter(h => h.role === 'user' || h.role === 'bot').slice(-4);
+        for (const t of turns) msgs.push({ role: t.role === 'user' ? 'user' : 'assistant', content: stripThought(t.text || '').slice(0, 600) });
+        msgs.push({ role: 'user', content: prompt.user });
+        /* Off-domain replies are a one-line "not in the CV" — Qwen3 reads /no_think in
+           the last user turn as "answer without reasoning", which keeps it that short. */
+        if (native && !wantThinking) {
+            for (let i = msgs.length - 1; i > 0; i--) if (msgs[i].role === 'user') { msgs[i].content += ' /no_think'; break; }
+        }
         return msgs;
     }
+    const stripThought = (t) => splitThinking(t).answer.trim() || String(t || '');
+
+    /* The prompt fences the verified answer in triple quotes, and small models
+       sometimes copy a fence or an opening quote into their reply along with it. */
+    function cleanAnswer(text) {
+        let t = String(text || '').replace(/^\s*"{3,}\s*/, '').replace(/\s*"{3,}\s*$/, '').trim();
+        /* The whole reply quoted back verbatim — the fence copied, not a quotation. */
+        if (t.length > 1 && t.startsWith('"') && t.endsWith('"') && !t.slice(1, -1).includes('"')) t = t.slice(1, -1).trim();
+        const quotes = (t.match(/"/g) || []).length;
+        if (quotes % 2 === 1) { if (t.startsWith('"')) t = t.slice(1); else if (t.endsWith('"')) t = t.slice(0, -1); }
+        return t.trim();
+    }
+
+    /* Last line of defence for questions the CV does not cover. A refusal is short and
+       makes no claim; anything that endorses Ajith for the thing asked about, or runs
+       on far past a two-sentence "not in his profile", is the failure mode we are
+       guarding against. Returns why it was rejected, or null if the reply is fine. */
+    /* Two tiers, because "not in his CV" covers two different questions. For a field he
+       has never worked in (plumbing, medicine) ANY claim of relevant background is
+       wrong. For a technology he simply hasn't listed (Rust, Kafka) naming his actual
+       stack alongside the "not listed" is correct and useful — only a claim about the
+       technology that was asked about is not. */
+    const FIT_CLAIMS = [
+        /\bgood (?:fit|match|choice)\b/i, /\bwell[- ]suited\b/i, /\bsuitable for\b/i,
+        /\bideal (?:for|candidate)\b/i, /\bmakes him\b/i, /\bthis means he\b/i,
+        /\bhe can help you\b/i, /\bqualified (?:for|as|in)\b/i
+    ];
+    const BACKGROUND_CLAIMS = [
+        /\b(?:has|with|brings) (?:extensive |deep |strong |significant )?(?:experience|expertise|skills?|background) (?:in|with)\b/i,
+        /\b(?:highly )?(?:skilled|experienced|proficient|expert)\b/i
+    ];
+    /* A reply that only offers alternatives ("I can tell you about his projects
+       instead") leaves the actual question unanswered and reads as a dodge. */
+    const DENIAL = /\b(?:not|isn't|is not|no|doesn't|does not|don't|won't|outside|beyond|unrelated|nothing)\b/i;
+    function offDomainProblem(answer, off) {
+        const text = String(answer || '');
+        const words = text.split(/\s+/).filter(Boolean).length;
+        const strict = !off || off.kind !== 'unlisted';
+        if (FIT_CLAIMS.some(re => re.test(text))) return 'it argued he is a fit for something the CV does not cover';
+        if (strict && BACKGROUND_CLAIMS.some(re => re.test(text))) return 'it claimed relevant experience the CV does not list';
+        if (!DENIAL.test(text)) return 'it never actually said the topic is outside his profile';
+        const cap = strict ? 90 : 130;
+        if (words > cap) return `it ran to ${words} words instead of a short "not in his profile"`;
+        return null;
+    }
+
+    /* In-scope answers get the same treatment for the one failure that matters on a
+       portfolio: a small model that drifts past the verified answer starts inventing
+       employers and products ("IBM Cloud Pak for React"). */
+    function inventedContent(answer, groundedText) {
+        const terms = engine.unsupportedTerms(answer, groundedText);
+        if (!terms.length) return null;
+        return `it introduced ${terms.slice(0, 3).map(t => '“' + t + '”').join(', ')}, which appear nowhere in the CV`;
+    }
+
     /* The library is imported as a pinned, pre-built ESM *file* rather than through
        jsDelivr's on-demand /+esm build service, which 503s on a cold bundle for a
        package this large. Each CDN is tried in turn so one bad edge node isn't fatal. */
@@ -229,6 +323,7 @@
         saveJSON(SETTINGS_KEY, settings);
     }
     function modelLabel(id) { const m = WEBLLM_MODELS.find(x => x.id === id); return m ? m.label.split(' (')[0] : String(id).split('-q4')[0]; }
+    function modelThinks(id) { const m = WEBLLM_MODELS.find(x => x.id === id); return !!(m && m.thinks); }
 
     /* ----- model download UX: progress card + disabled chat ----- */
     function setChatDisabled(on, placeholder) {
@@ -328,15 +423,50 @@
             .catch(err => { if (seq === download.seq) finishDownload(false, err); throw err; });
         return download.promise;
     }
-    async function* streamWebLLM(messages, signal) {
+    async function* streamWebLLM(messages, signal, opts) {
         const eng = await loadWebLLM();
         if (!eng) throw new Error('Model loading was interrupted by a model switch.');
-        const chunks = await eng.chat.completions.create({ messages, stream: true, temperature: 0.3, max_tokens: 420 });
-        for await (const c of chunks) {
-            if (signal.aborted) break;
-            const d = c.choices && c.choices[0] && c.choices[0].delta && c.choices[0].delta.content;
-            if (d) yield d;
-        }
+        opts = opts || {};
+        /* Thinking eats tokens before a single word of the answer is written, so the
+           budget grows when the trace is going to show it. */
+        const chunks = await eng.chat.completions.create({
+            messages, stream: true,
+            temperature: opts.temperature || 0.3,
+            max_tokens: opts.maxTokens || 420,
+            /* Sub-1B models fall into paragraph loops once they run out of things to
+               say; penalising tokens they have already used is what breaks the cycle. */
+            frequency_penalty: opts.frequencyPenalty != null ? opts.frequencyPenalty : 0.7,
+            presence_penalty: opts.presencePenalty != null ? opts.presencePenalty : 0.4
+        });
+        const seen = new Set();
+        let acc = '', done = false;
+        /* Walking away from a half-finished stream leaves MLCEngine mid-generation and
+           the next request never resolves, so stopping early means asking the engine to
+           stop and then draining what is already queued — never just returning. */
+        const halt = () => { done = true; try { if (typeof eng.interruptGenerate === 'function') eng.interruptGenerate(); } catch (e) { /* older builds */ } };
+        /* The consumer breaks out of this generator when the visitor hits Stop, which
+           abandons `chunks` mid-flight; the finally is what still frees the engine. */
+        try {
+            for await (const c of chunks) {
+                if (signal.aborted) { halt(); continue; }
+                if (done) continue;
+                const d = c.choices && c.choices[0] && c.choices[0].delta && c.choices[0].delta.content;
+                if (!d) continue;
+                yield d;
+                /* Penalties reduce looping but don't end it — a model can restate a whole
+                   sentence in different tokens. Any substantial sentence arriving twice means
+                   the answer is over. */
+                acc += d;
+                const parts = acc.split(/(?<=[.!?])\s+/);
+                acc = parts.pop() || '';
+                for (const part of parts) {
+                    const key = part.toLowerCase().replace(/[^a-z0-9 ]+/g, '').replace(/\s+/g, ' ').trim();
+                    if (key.length < 30) continue;
+                    if (seen.has(key)) { halt(); break; }
+                    seen.add(key);
+                }
+            }
+        } finally { halt(); }
     }
     function hideProgress() { el.progress.hidden = true; el.progressBar.style.width = '0%'; refreshStatus(); }
 
@@ -357,7 +487,7 @@
         const cfg = document.createElement('div'); cfg.className = 'ai-engine__cfg';
         if (settings.engine === 'webllm') {
             cfg.innerHTML = `<label>Model</label><select id="ai-webllm-model">${WEBLLM_MODELS.map(x => `<option value="${x.id}"${x.id === settings.webllmModel ? ' selected' : ''}>${x.label}</option>`).join('')}</select>
-                <div class="hint">Downloads once to your browser cache, then runs offline on your GPU. Answers are grounded in the same CV retrieval the built-in engine uses (RAG).</div>`;
+                <div class="hint">Downloads once to your browser cache, then runs offline on your GPU. Answers are grounded in the same CV retrieval the built-in engine uses (RAG). The trace streams the model's own reasoning as it arrives — the <b>thinking</b> models reason out loud by design, the others are asked for a short thought block.</div>`;
             m.appendChild(cfg);
             cfg.querySelector('#ai-webllm-model').addEventListener('change', (e) => selectModel(e.target.value));
         }
@@ -422,8 +552,11 @@
         scrollToBottom(true);
 
         const useLLM = settings.engine !== 'builtin';
+        const offDomain = !!res.offDomain;
+        const showThought = useLLM && !offDomain;
         const steps = res.reasoning.slice();
-        if (useLLM) steps.push({ icon: 'fa-magic', text: `Handing retrieved context to ${settings.webllmModel.split('-q4')[0]} (WebGPU) as RAG context…` });
+        if (useLLM && offDomain) steps.push({ icon: 'fa-shield-halved', text: `Nothing in the CV covers this — the model gets a scope-only prompt with no résumé to draw on, and its reply is checked before it is shown.` });
+        if (useLLM) steps.push({ icon: 'fa-magic', text: `Handing retrieved context to ${settings.webllmModel.split('-q4')[0]} (WebGPU) as RAG context${showThought ? ' — its own reasoning streams below' : ''}…` });
 
         // 2. unfold trace
         for (let i = 0; i < steps.length; i++) {
@@ -435,23 +568,70 @@
         await sleep(useLLM ? 0 : 120);
 
         let finalHtml = res.html, finalText = res.text, engineUsed = 'builtin', llmError = null;
+        let thought = '', thinkMs = 0;
 
         // 3. LLM generation (streamed) or built-in reveal
         if (useLLM && !signal.aborted) {
             try {
-                const messages = buildMessages(text);
-                const stream = streamWebLLM(messages, signal);
-                let acc = '', raf = null;
+                const native = modelThinks(settings.webllmModel);
+                const messages = buildMessages(text, res);
+                const stream = streamWebLLM(messages, signal, {
+                    maxTokens: offDomain ? 120 : showThought ? (native ? 1400 : 700) : 380,
+                    temperature: offDomain ? 0.2 : showThought && native ? 0.6 : 0.3
+                });
+                let acc = '', raf = null, thoughtEl = null, thoughtTxt = null;
+                const streamT0 = performance.now();
                 answerEl.innerHTML = '<span class="stream-cursor"></span>';
+                /* The model's thinking and its answer arrive in one token stream; the
+                   split is re-derived each frame so a tag arriving mid-chunk still
+                   routes the text to the right place. */
+                const paint = () => {
+                    const part = splitThinking(acc);
+                    if (showThought && part.thought.trim()) {
+                        if (!thoughtEl) {
+                            stepsEl.insertAdjacentHTML('beforeend', thoughtHtml('', true));
+                            thoughtEl = stepsEl.lastElementChild;
+                            thoughtTxt = thoughtEl.querySelector('.ai-thought__txt');
+                        }
+                        thought = part.thought.trim();
+                        thoughtTxt.textContent = thought;
+                        thoughtTxt.scrollTop = thoughtTxt.scrollHeight;
+                    }
+                    if (thoughtEl && !part.thinking && thoughtEl.classList.contains('is-live')) {
+                        thoughtEl.classList.remove('is-live');
+                        thinkMs = performance.now() - streamT0;
+                    }
+                    const ans = part.answer.trim();
+                    answerEl.innerHTML = (ans ? AjithAI.mdToHtml(ans) : '') + '<span class="stream-cursor"></span>';
+                    scrollToBottom();
+                };
                 for await (const chunk of stream) {
                     if (signal.aborted) break;
                     acc += chunk;
-                    if (!raf) raf = requestAnimationFrame(() => { raf = null; answerEl.innerHTML = AjithAI.mdToHtml(acc) + '<span class="stream-cursor"></span>'; scrollToBottom(); });
+                    if (!raf) raf = requestAnimationFrame(() => { raf = null; paint(); });
                 }
                 if (raf) cancelAnimationFrame(raf);
-                if (acc.trim()) { finalText = acc.trim(); finalHtml = AjithAI.mdToHtml(finalText); engineUsed = settings.engine; }
-                answerEl.innerHTML = finalHtml;
-                answerEl.querySelectorAll('.bar > span').forEach(b => b.style.width = b.style.getPropertyValue('--w'));
+                const part = splitThinking(acc);
+                thought = showThought ? part.thought.trim() : '';   // off-domain: a model that thinks anyway keeps it to itself
+                const answer = cleanAnswer(part.answer);
+                if (!thinkMs && thought) thinkMs = performance.now() - streamT0;
+                const rejected = !answer ? null
+                    : offDomain ? offDomainProblem(answer, res.offDomain)
+                        : inventedContent(answer, res.text);
+                if (rejected) {
+                    /* The prompt is as tight as it can be, but a 360M model can still
+                       talk itself into a "good fit" answer or invent an employer.
+                       Showing the built-in reply instead keeps a wrong claim about
+                       Ajith off the page, and the trace says what was dropped. */
+                    steps.push({ icon: 'fa-triangle-exclamation', text: `Discarded the model's reply — ${rejected}. Answering from the CV index instead.` });
+                    answerEl.innerHTML = finalHtml;
+                } else if (answer) {
+                    finalText = answer; finalHtml = AjithAI.mdToHtml(answer); engineUsed = settings.engine;
+                    answerEl.innerHTML = finalHtml;
+                    answerEl.querySelectorAll('.bar > span').forEach(b => b.style.width = b.style.getPropertyValue('--w'));
+                } else if (part.thought.trim() && !signal.aborted) {
+                    steps.push({ icon: 'fa-exclamation-triangle', text: 'The model used its whole token budget thinking and never reached an answer — the built-in engine answered instead.' });
+                }
             } catch (e) {
                 llmError = e && e.message ? e.message : String(e);
                 hideProgress();
@@ -460,10 +640,10 @@
 
         // 4. finalise trace
         const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
-        const traceTitle = `Reasoned for ${elapsed}s`;
-        const traceSub = `${res.intent.replace(/_/g, ' ')} · ${Math.round(res.confidence * 100)}%${engineUsed !== 'builtin' ? ' · ' + engineUsed : ''}`;
+        const traceTitle = thought ? `Thought for ${((thinkMs || (performance.now() - t0)) / 1000).toFixed(1)}s` : `Reasoned for ${elapsed}s`;
+        const traceSub = `${thought ? modelLabel(settings.webllmModel) + ' · its own words' : res.intent.replace(/_/g, ' ') + ' · ' + Math.round(res.confidence * 100) + '%'}${engineUsed !== 'builtin' && !thought ? ' · ' + engineUsed : ''}`;
         if (llmError) steps.push({ icon: 'fa-exclamation-triangle', text: `LLM engine failed (${escapeHtml(llmError)}) — answering with the built-in engine instead.` });
-        traceEl.outerHTML = traceHtml(steps, { title: traceTitle, sub: traceSub }, false);
+        traceEl.outerHTML = traceHtml(steps, { title: traceTitle, sub: traceSub, thought: thought }, false);
 
         // 5. reveal built-in answer (typewriter) when no LLM text was produced
         if (engineUsed === 'builtin' && !signal.aborted) {
@@ -476,7 +656,7 @@
 
         // 6. actions, follow-ups, persist
         extraEl.innerHTML = actionChipsHtml(res.actions);
-        const entry = { role: 'bot', text: finalText, html: answerEl.innerHTML, prompt: text, meta: { reasoning: steps, traceTitle, traceSub, actions: res.actions, engine: engineUsed, intent: res.intent } };
+        const entry = { role: 'bot', text: finalText, html: answerEl.innerHTML, prompt: text, meta: { reasoning: steps, traceTitle, traceSub, thought: thought, actions: res.actions, engine: engineUsed, intent: res.intent } };
         actionsEl.innerHTML = actionsBarHtml(entry);
         bindActions($(id), entry);
         history.push(entry);

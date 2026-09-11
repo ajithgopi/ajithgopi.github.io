@@ -233,6 +233,7 @@
     const STOP = new Set(('a an the and or but of to in on at for with by from as is are was were be been being am do does did doing have has had having it its this that these those he him his she her they them their you your yours we our ours me my mine i what which who whom whose when where why how much many can could would should shall will may might must about into over under again further then once here there all any both each few more most other some such no nor not only own same so than too very s t just don now tell please give show list know does').split(' '));
 
     const KNOWN_TECH = 'rust java ruby rails scala elixir erlang haskell clojure csharp dotnet net django spring springboot unity unreal blockchain solidity web3 terraform ansible svelte solid remix deno bun perl cobol fortran matlab r julia swiftui objective-c objc xamarin ionic cordova capacitor electron tauri wordpress drupal magento shopify salesforce sap oracle sqlite cassandra couchdb elasticsearch elastic solr rabbitmq nats kafka spark hadoop airflow dbt snowflake bigquery redshift databricks tensorflow keras jax huggingface transformers llamaindex pinecone weaviate qdrant milvus supabase firebase heroku vercel netlify cloudflare digitalocean linode gcp azure openshift nomad consul vault grafana prometheus datadog sentry newrelic splunk jest mocha cypress playwright selenium puppeteer storybook webpack vite rollup esbuild babel eslint prettier graphql grpc trpc prisma sequelize typeorm knex drizzle mongoose flask fastapi tornado celery redux mobx zustand recoil tailwind bootstrap sass less styled figma sketch photoshop illustrator blender unity3d arduino raspberry esp32 mqtt zigbee opencv yolo cuda metal vulkan opengl webgl threejs three d3 chartjs highcharts stripe paypal razorpay twilio sendgrid mailchimp auth0 okta keycloak oauth jwt saml ldap kerberos nginx apache caddy haproxy traefik istio linkerd envoy';
+const KNOWN_TECH_SET = new Set(KNOWN_TECH.split(' '));
 const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thanks thank yes no okay sure please what which who where when why how many much long years year experience experienced skills skill technology technologies tech stack projects project work worked working build built company companies job jobs role roles contact email phone reach hire hiring available availability salary location live based education degree university studied study about tell more detail details compare versus difference better best favourite favorite favorite languages language speak spoken hobbies hobby interests interest remote relocate relocation visa notice period team lead leadership manage management strengths strength weakness weaknesses why should recommend summary overview background career history resume cv download link links portfolio website site chatbot assistant engine model running browser local offline joke funny time timezone current currently latest recent first last previous next also again another something anything everything nothing know knows familiar proficient expert level rate rating certification certifications certified achievement achievements award awards open opportunities opportunity freelance contract full time part senior junior mid principal architect engineer developer programmer fullstack frontend backend mobile cloud devops database data science machine learning artificial intelligence learning models model apps app application applications platform platforms enterprise startup banking finance fintech healthcare edtech').split(' ');
 
     function normalize(str) {
@@ -583,6 +584,9 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
         const projects = entities.project.map(e => e.ref);
         const first = P.first;
         let md = '', followups = [], actions = [], pending = null, topic = null;
+        /* Set when the question asks about something the CV simply does not cover. The
+           LLM adapter reads it to refuse instead of improvising a flattering link. */
+        let offDomain = null;
 
         switch (intent) {
             case 'help':
@@ -725,9 +729,15 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                 followups = ['What are his strengths?', 'Tell me about Tutorhow', 'Is he open to lead roles?']; topic = 'experience'; break;
             }
 
-            case 'strengths':
+            case 'strengths': {
+                /* "Is he good at <X>" scores as strengths on the "good at" alone. When X
+                   is a subject we don't recognise, a highlights reel reads as a pitch
+                   for X — answer about X instead. */
+                const bare = !skills.length && !weakSkills.length && !companies.length && !projects.length;
+                if (bare && strengthsSubject(text)) return compose({ ...ctx, intent: 'knows_tech' });
                 md = `A few things that make ${first} stand out:\n\n- **Full-stack depth** — ${totalYearsLabel()} across React/Next.js, Node.js, MongoDB/SQL and AWS, in banking, healthcare and edtech\n- **AI-native workflow** — ships with Claude/OpenAI/Ollama in the loop: RAG pipelines, agentic automation and in-sprint AI tooling (he built the assistant you're using)\n- **Ownership** — led a 5-person team, managed deployments and CI/CD end-to-end\n- **Adaptable** — ${P.competencies[2].toLowerCase()}; comfortable remote and cross-time-zone\n- **Product sense** — UI/UX-minded, builds high-fidelity interfaces, not just APIs`;
                 followups = ['Any weaknesses?', 'What AI work has he done?', 'How do I contact him?']; actions = [ACT.email]; break;
+            }
 
             case 'weakness':
                 md = `Honest answer: his CV doesn't advertise weaknesses 😄 — but a fair read is that ${first}'s depth is in the **JavaScript/TypeScript + Node + React** ecosystem and AWS; tools like Azure/GCP, Golang or Kubernetes are working-knowledge rather than expert level. He's known for picking up new stacks fast, so treat those as growth areas rather than gaps.`;
@@ -797,8 +807,22 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                         memory.lastSkills = [s]; break;
                     }
                     const near = retrieval.filter(r => r.doc.type === 'skill').slice(0, 3).map(r => r.doc.ref);
-                    md = `**${unknown ? cap(unknown) : 'That technology'}** isn't listed on ${first}'s CV, so I won't claim experience he hasn't documented.\n\nHis core stack is **JavaScript/TypeScript, React/Next.js, Node.js, MongoDB/SQL, AWS and AI/LLM tooling** — and he has a track record of picking up adjacent tools quickly.${near.length ? `\n\n*Closest listed skills:* ${near.map(s => s.name).join(', ')}.` : ''}\n\nIf it's critical for a role, ${link('ask him directly', 'mailto:' + P.email)}.`;
-                    followups = ['What is his full tech stack?', 'How quickly does he learn new tools?', 'What are his strengths?']; actions = [ACT.skills, ACT.email]; topic = 'skills'; break;
+                    /* Nothing in the CV comes close, so this is a different *field*, not
+                       an unfamiliar tool. Answering it with "he picks up adjacent tools
+                       quickly" reads as a pitch for whatever was asked about — which is
+                       exactly the bridge an LLM rewriting this would run with. */
+                    const offField = !(unknown && KNOWN_TECH_SET.has(unknown));
+                    if (offField) {
+                        md = `${first} is a software engineer — **${unknown ? cap(unknown) : 'that'}** isn't part of his professional profile, and I won't guess at skills he hasn't documented.\n\nI can tell you about his **engineering experience**, **projects** or **AI work** instead, or you can ${link('email him', 'mailto:' + P.email)}.`;
+                        followups = ['What does he actually do?', 'What is his full tech stack?', 'Where has he worked?'];
+                        actions = [ACT.email]; topic = 'skills';
+                    } else {
+                        md = `**${unknown ? cap(unknown) : 'That technology'}** isn't listed on ${first}'s CV, so I won't claim experience he hasn't documented.\n\nHis core stack is **JavaScript/TypeScript, React/Next.js, Node.js, MongoDB/SQL, AWS and AI/LLM tooling** — and he has a track record of picking up adjacent tools quickly.${near.length ? `\n\n*Closest listed skills:* ${near.map(s => s.name).join(', ')}.` : ''}\n\nIf it's critical for a role, ${link('ask him directly', 'mailto:' + P.email)}.`;
+                        followups = ['What is his full tech stack?', 'How quickly does he learn new tools?', 'What are his strengths?'];
+                        actions = [ACT.skills, ACT.email]; topic = 'skills';
+                    }
+                    offDomain = { kind: offField ? 'off-field' : 'unlisted', term: unknown || null };
+                    break;
                 }
                 if (skills.length > 1) {
                     md = skills.slice(0, 4).map(s => skillLine(s)).join('\n\n');
@@ -918,21 +942,55 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                     const map = { profile: 'identity_person', education: 'education', contact: 'contact', interests: 'hobbies' };
                     if (map[d.type]) return compose({ ...ctx, intent: map[d.type] });
                 }
+                /* "Would he be a good fit for X" / "is he qualified as an X" — we can't
+                   classify it, but the subject is right there in the sentence, so name
+                   it rather than shrugging. */
+                if (strengthsSubject(text)) return compose({ ...ctx, intent: 'knows_tech' });
                 md = pick([
                     `I'm not sure I caught that — I specialise in ${first}'s professional profile. Try asking about his **experience**, a **technology**, a **project**, or **how to contact him**. Type \`/help\` for ideas.`,
                     `That one's outside what I know. I can tell you about ${first}'s **skills**, **AI work**, **projects** or **career** — what would help?`,
                     `Hmm, I don't have an answer for that. I'm strongest on ${first}'s **tech stack**, **work history** and **projects** — ask away, or type \`/help\`.`
                 ]);
                 followups = FOLLOW.general; ctx.fallback = true;
+                offDomain = { kind: 'unmatched', term: null };
             }
         }
-        return { md, followups, actions, pending, topic };
+        return { md, followups, actions, pending, topic, offDomain };
+    }
+
+    const normTerm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ').replace(/\s+/g, ' ').trim();
+    /* Capitalised words that carry no factual claim, so they never count as invented. */
+    const GENERIC_CAPS = new Set('however also meanwhile additionally furthermore moreover overall finally today yes ajith gopi english january february march april may june july august september october november december monday tuesday wednesday friday saturday sunday'.split(' '));
+
+    /* COMMON deliberately swallows KNOWN_TECH so the spell-corrector treats those
+       names as valid words. The skip list below must not, or every technology we know
+       about but Ajith hasn't listed (Rust, Kafka, Terraform…) comes back as null and
+       gets mistaken for a question about some other line of work entirely. */
+    const GUESS_SKIP = new Set([...STOP, ...COMMON.filter(w => !KNOWN_TECH_SET.has(w)),
+        'ajith', 'he', 'does', 'know', 'use', 'work', 'with', 'in', 'any', 'have', 'has', 'experience', 'familiar', 'good', 'strong', 'skilled', 'used', 'worked', 'ever', 'also', 'much', 'well', 'comfortable', 'proficient', 'expert', 'years', 'year', 'long', 'many', 'us', 'uk', 'eu', 'the', 'for', 'his', 'him']);
+    /* The subject of a "good at X" / "good fit for X" question, when X is something we
+       don't otherwise recognise. Matching the sentence shape rather than guessing at a
+       stray token keeps "what makes him stand out" from being read as a question about
+       "out". Returns null when there is no explicit subject. */
+    const SUBJECT_SHAPES = [
+        /\b(?:good|great|strong|skilled|experienced|proficient|competent|capable|qualified|suited?)\s+(?:at|in|with|for|as)\s+(.+)$/,
+        /\b(?:good|right|strong)\s+(?:fit|match|choice|candidate)\s+(?:for|as|in)\s+(.+)$/,
+        /\bcan\s+(?:he|ajith)\s+(?:do|handle|manage|help\s+with)\s+(.+)$/
+    ];
+    function strengthsSubject(text) {
+        for (const re of SUBJECT_SHAPES) {
+            const m = re.exec(text);
+            if (!m) continue;
+            const toks = tokenize(m[1]).filter(t => !STOP.has(t) && t.length > 2 && !['work', 'job', 'role', 'jobs', 'roles', 'stuff', 'things', 'thing'].includes(t));
+            if (toks.length) return toks[0];
+        }
+        return null;
     }
 
     function guessUnknownTech(text) {
-        const skip = new Set([...STOP, ...COMMON, 'ajith', 'he', 'does', 'know', 'use', 'work', 'with', 'in', 'any', 'have', 'has', 'experience', 'familiar', 'good', 'strong', 'skilled', 'used', 'worked', 'ever', 'also', 'much', 'well', 'comfortable', 'proficient', 'expert', 'years', 'year', 'long', 'many', 'us', 'uk', 'eu', 'the', 'for', 'ever', 'his', 'him']);
-        const toks = tokenize(text).filter(t => !skip.has(t) && t.length > 1);
-        return toks.length ? toks[toks.length - 1] : null;
+        const toks = tokenize(text).filter(t => !GUESS_SKIP.has(t) && t.length > 1);
+        /* A name we recognise as a technology beats trailing filler like "work". */
+        return toks.find(t => KNOWN_TECH_SET.has(t)) || (toks.length ? toks[toks.length - 1] : null);
     }
 
     /* ---------------------------------------------------------
@@ -1011,29 +1069,123 @@ const COMMON = (KNOWN_TECH + ' hello hi hey good morning afternoon evening thank
                 sources: retrieval.slice(0, 3).map(r => ({ title: r.doc.title, score: r.score, section: r.doc.section })),
                 corrections,
                 elapsedMs: performance.now() - t0,
-                fallback: !!ctx.fallback
+                fallback: !!ctx.fallback,
+                offDomain: out.offDomain || null
             };
         }
 
         function reset() { memory.pending = null; memory.lastTopic = null; memory.lastSkills = []; memory.lastCompany = null; memory.lastProject = null; memory.turns = 0; memory.lastIntent = null; }
 
         /* Compact, LLM-friendly context for the optional WebGPU engine */
-        function buildSystemPrompt(query) {
-            const p = KB.profile;
-            const top = index.search(query || '', 6).map(r => r.doc);
-            const facts = [
-                `You are "${p.first}'s AI Assistant" on ${p.name}'s portfolio website. Answer questions about ${p.name} (he/him) for recruiters and visitors. Be concise, friendly and factual. Use short markdown (bold, bullet lists). Never invent facts; if something is not in the profile, say so and suggest emailing ${p.email}. Do not share personal details beyond the professional profile. Today is ${new Date().toDateString()}.`,
-                `PROFILE: ${p.name}, ${p.title}, based in ${p.location.short} (from ${p.location.origin}). Total experience ${totalYearsLabel()} since ${fmtYm(p.careerStart)}. Email ${p.email}, phone ${p.phone}, LinkedIn ${p.socials.linkedin}, GitHub ${p.socials.github}. Education: ${p.education.degree}, ${p.education.school}, ${p.education.years}, ${p.education.grade}. Open to: ${p.openTo}. Interests: ${p.interests.join('; ')}.`,
-                `SUMMARY: ${p.summary.join(' ')}`,
-                `EXPERIENCE: ` + KB.experience.map(e => `${e.role} at ${e.company}${e.via ? ' via ' + e.via : ''}, ${e.location}, ${fmtYm(e.start)}–${fmtYm(e.end)}: ${e.highlights.join('; ')}. Stack: ${e.stack.join(', ')}.`).join(' | '),
-                `PROJECTS: ` + KB.projects.map(pr => `${pr.name} (${pr.period}): ${pr.summary} Stack: ${pr.stack.join(', ')}. Deployed: ${pr.deploy}.`).join(' | '),
-                `SKILLS (name: years, level/100): ` + KB.skills.map(s => `${s.name}: ${s.years}+ yrs, ${s.level}`).join('; '),
-                top.length ? `MOST RELEVANT PASSAGES FOR THIS QUESTION: ` + top.map(d => `[${d.title}] ${d.text.slice(0, 400)}`).join(' || ') : ''
-            ];
-            return facts.filter(Boolean).join('\n\n');
+        /* Markdown → plain prose, so a composed answer can be quoted to an LLM
+           without it copying our link and bold syntax into its own reply. */
+        function stripMd(md) {
+            return String(md || '')
+                .replace(/^::bar\s+\d+\s*$/gm, '')          // skill-bar directive, not prose
+                .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+                .replace(/[*_`]+/g, '')
+                .replace(/^[-•]\s*/gm, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
         }
 
-        return { ask, reset, buildSystemPrompt, memory, kb: KB, search: index.search, mdToHtml, totalYears, totalYearsLabel };
+        /* `grounded` is the result object from ask() for the same query. Handing the
+           model our already-verified answer turns generation into a rewrite job, which
+           is the only thing sub-1B models do reliably.
+           Returns { system, user }: the context goes in the USER turn, not the system
+           prompt. SmolLM2-360M demonstrably ignores a system message it disagrees with
+           — told in `system` that the answer is "6+ years" it still replied "I don't
+           have the exact years" — but follows the same text in the final user turn. */
+        function buildPrompt(query, grounded) {
+            const p = KB.profile;
+            const off = grounded && grounded.offDomain;
+            const answer = grounded && grounded.text ? stripMd(grounded.text) : '';
+            const q = String(query || '').trim();
+
+            /* Off-profile questions get NO CV in the prompt at all. Handing a tiny model
+               the full résumé and asking it to decline is a losing bet: it pattern-matches
+               the nearest flattering bullet and welds it to whatever was asked ("his NLP
+               experience makes him a good fit for plumbing"). With no highlights in
+               context there is nothing to launder. */
+            if (off) {
+                const subject = off.term ? `"${off.term}"` : 'that';
+                return {
+                    system: [
+                        `You are ${p.first}'s AI assistant on his portfolio website. ${p.name} (he/him) is a software engineer — nothing else.`,
+                        `RULES — follow every one:`,
+                        `1. Say plainly that the topic is not something his profile covers. That is the entire answer.`,
+                        `2. NEVER argue that his software, AI or machine-learning experience makes him suitable for it. It does not. Do not stretch, reframe or connect them.`,
+                        `3. Do not list his skills, employers or projects, and do not praise him.`,
+                        `4. Two sentences maximum, about 40 words. Say it once, then stop.`,
+                        `5. Close by offering to answer questions about his engineering work instead, or by suggesting ${p.email}.`
+                    ].join('\n'),
+                    user: [
+                        `A visitor asked: "${q}"`,
+                        ``,
+                        `${subject} is NOT in ${p.first}'s CV or professional profile — he has no documented experience with it.`,
+                        answer ? `A correct reply reads like this:\n"""\n${answer}\n"""` : '',
+                        ``,
+                        `Write that reply in your own words, at the same length. Do not claim he is suitable for it.`
+                    ].filter(x => x !== undefined).join('\n')
+                };
+            }
+
+            const top = index.search(q, 4).map(r => r.doc);
+            return {
+                system: [
+                    `You are "${p.first}'s AI Assistant" on ${p.name}'s portfolio website, answering questions from recruiters and visitors about ${p.name} (he/him), a ${p.title} in ${p.location.short} with ${totalYearsLabel()} of experience.`,
+                    `RULES — follow every one:`,
+                    `1. The CV ANSWER you are given is correct and complete. Rewrite it warmly in your own words. Never hedge, never say you are unsure or lack the information, never tell the visitor to verify it.`,
+                    `2. Keep every number, year, name and job title exactly as given. Add no fact you were not given.`,
+                    `3. ${p.first} is a software engineer. Never claim ability in a trade, profession or field you were not given.`,
+                    `4. Under 100 words. Short markdown (**bold**, bullet lists) is fine.`,
+                    `5. Make each point once. Never repeat a sentence or restate a paragraph. Stop as soon as the answer is delivered.`
+                ].join('\n'),
+                user: [
+                    answer ? `CV ANSWER (looked up and verified — this is the truth, say it back):\n"""\n${answer}\n"""` : '',
+                    top.length ? `\nRelated CV passages, for context only:\n${top.map(d => `- [${d.title}] ${d.text.slice(0, 240)}`).join('\n')}` : '',
+                    `\nThe visitor asked: "${q}"`,
+                    answer ? `\nAnswer them using the CV ANSWER above.` : `\nAnswer from the passages above; if they don't cover it, say so and suggest emailing ${p.email}.`
+                ].filter(Boolean).join('\n')
+            };
+        }
+
+        /* Every word the CV actually contains, flattened once. */
+        const KB_CORPUS = normTerm(JSON.stringify(KB));
+
+        /* Names and technologies in `answer` that appear nowhere in the CV or in the
+           verified answer the model was given — i.e. things it made up. Small models
+           drift once they run past the grounded text and start inventing employers and
+           products ("IBM Cloud Pak for React"), which on a portfolio site is the one
+           failure that really matters. Returns the invented terms, or []. */
+        function unsupportedTerms(answer, groundedText) {
+            const corpus = KB_CORPUS + ' ' + normTerm(groundedText || '');
+            const known = (term) => {
+                const t = normTerm(term);
+                if (t.length < 3 || STOP.has(t) || GENERIC_CAPS.has(t)) return true;
+                if (corpus.includes(t)) return true;
+                /* "React/Next.js" may be punctuated differently in the CV than in the
+                   answer, so a compound counts as known when its parts are. */
+                const parts = t.split(' ').filter(x => x.length > 2);
+                return parts.length > 1 && parts.every(x => corpus.includes(x));
+            };
+            const out = [];
+            for (const sentence of String(answer || '').split(/(?<=[.!?:])\s+|\n+/)) {
+                const words = sentence.match(/[A-Za-z][A-Za-z0-9+#./_-]*/g) || [];
+                words.forEach((w, i) => {
+                    const innerCaps = /[A-Z]/.test(w.slice(1));       // MongoDB, CI/CD, AWS
+                    if (!innerCaps && !(/^[A-Z]/.test(w) && i > 0)) return;  // skip sentence-initial caps
+                    if (known(w)) return;
+                    if (!out.includes(w)) out.push(w);
+                });
+            }
+            return out;
+        }
+
+        /* Back-compat: the system half on its own. */
+        function buildSystemPrompt(query, grounded) { return buildPrompt(query, grounded).system; }
+
+        return { ask, reset, buildPrompt, buildSystemPrompt, stripMd, unsupportedTerms, memory, kb: KB, search: index.search, mdToHtml, totalYears, totalYearsLabel };
     }
 
     global.AjithAI = { createEngine, KB, mdToHtml, normalize, tokenize, totalYears, totalYearsLabel, yearsBetween };

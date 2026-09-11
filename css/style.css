@@ -854,6 +854,27 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
 .ai-trace__step i { margin-top: 4px; font-size: 0.7rem; color: var(--primary); flex-shrink: 0; }
 .ai-trace__step.done i { color: var(--ai); }
 .ai-trace__step .score { color: var(--text-dim); }
+/* live chain of thought streamed from the model itself */
+.ai-thought { display: flex; gap: 7px; align-items: flex-start; margin-top: 4px; animation: msgIn 0.3s var(--ease-out); }
+.ai-thought > i { margin-top: 4px; font-size: 0.7rem; color: var(--ai); flex-shrink: 0; }
+.ai-thought.is-live > i { animation: thoughtPulse 1.4s infinite ease-in-out; }
+.ai-thought__txt {
+    flex: 1;
+    min-width: 0;
+    max-height: 9.5rem;
+    overflow-y: auto;
+    padding-left: 8px;
+    border-left: 2px solid var(--border-highlight);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+}
+.ai-thought.is-live .ai-thought__txt::after { content: ''; display: inline-block; width: 5px; height: 0.9em; background: var(--ai); vertical-align: -0.1em; margin-left: 2px; border-radius: 1px; animation: blink 0.9s infinite; }
+@keyframes thoughtPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
 .thinking-dots { display: inline-flex; gap: 4px; margin-left: 4px; }
 .thinking-dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--ai); animation: dotPulse 1.3s infinite ease-in-out both; }
 .thinking-dots span:nth-child(1) { animation-delay: -0.3s; }
