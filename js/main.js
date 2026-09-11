@@ -137,6 +137,29 @@
         } else fab.classList.add('is-visible');
     }
 
+    /* ---------- Responsive placeholders ---------- */
+    /* Long placeholders wrap (and get clipped) in narrow single-line fields,
+       so swap in a short variant below the mobile breakpoint. */
+    function initResponsivePlaceholders() {
+        const fields = $$('[data-placeholder-sm]'); if (!fields.length) return;
+        // A field may already carry a richer long variant set by its own module, and
+        // script order between the two is not guaranteed — so never overwrite one.
+        fields.forEach(f => { if (!f.dataset.placeholderLg) f.dataset.placeholderLg = f.placeholder; });
+        let small = null;
+        const apply = (force) => {
+            const isSmall = document.documentElement.clientWidth <= 575.98;
+            if (isSmall === small && !force) return;
+            small = isSmall;
+            fields.forEach(f => { f.placeholder = isSmall ? f.dataset.placeholderSm : f.dataset.placeholderLg; });
+        };
+        apply();
+        window.addEventListener('resize', apply, { passive: true });
+        window.addEventListener('orientationchange', apply);
+        // Modules that temporarily replace a placeholder ask for it back through here,
+        // so the breakpoint stays owned in one place.
+        window.refreshPlaceholders = () => apply(true);
+    }
+
     /* ---------- Hero word stagger ---------- */
     function initHeroWords() {
         $$('.hero__title .word').forEach((w, i) => w.style.setProperty('--i', i));
@@ -144,7 +167,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        initTheme(); initHeroWords(); initTyping(); initSkillFilter(); initProjectFilter(); initNav(); initCounters(); initReveal(); initTimeline(); initMarquee(); initFab();
+        initTheme(); initHeroWords(); initTyping(); initSkillFilter(); initProjectFilter(); initNav(); initCounters(); initReveal(); initTimeline(); initMarquee(); initFab(); initResponsivePlaceholders();
         const y = $('#year'); if (y) y.textContent = new Date().getFullYear();
     });
 })();

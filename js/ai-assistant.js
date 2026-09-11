@@ -42,10 +42,7 @@
     let webllm = { engine: null, model: null }, webllmModule = null;
     let download = { seq: 0, active: false, promise: null, model: null, card: null };
     let onInitProgress = null;
-    /* The narrow layout puts three buttons beside the field, and the long prompt then
-       wraps to three clipped lines — so it gets a shorter one. */
-    const NARROW = window.matchMedia('(max-width: 575.98px)');
-    const inputPlaceholder = () => NARROW.matches ? 'Ask about Ajith…' : 'Ask about experience, skills, projects… (try /help)';
+    const INPUT_PLACEHOLDER = 'Ask about experience, skills, projects… (try /help)';
     let el = {};
 
     /* ---------------- helpers ---------------- */
@@ -333,7 +330,7 @@
         el.input.disabled = on; el.send.disabled = on; el.mic.disabled = on; el.clear.disabled = on;
         el.chips.classList.toggle('is-disabled', on);
         el.panel.classList.toggle('is-loading-model', on);
-        el.input.placeholder = on ? (placeholder || 'Downloading model…') : inputPlaceholder();
+        if (on) el.input.placeholder = placeholder || 'Downloading model…'; else restorePlaceholder();
         document.querySelectorAll('[data-ai-prompt]').forEach(b => b.disabled = on);
     }
     function removeDownloadCards() {
@@ -936,7 +933,7 @@
             el.mic.classList.toggle('is-listening', on);
             el.mic.title = on ? 'Stop listening' : 'Voice input';
             if (on) el.input.placeholder = 'Listening…';
-            else if (!el.input.disabled) el.input.placeholder = inputPlaceholder();
+            else if (!el.input.disabled) restorePlaceholder();
         }
         el.mic.addEventListener('click', () => {
             if (speech.listening) { cancelled = true; try { rec.stop(); } catch (e) { /* ignore */ } return; }
@@ -966,6 +963,14 @@
         });
     }
 
+    /* main.js owns the narrow/wide placeholder swap for every field on the page; the
+       assistant only contributes the richer wide variant and asks for it back after
+       borrowing the field for "Listening…" or a model download. */
+    function restorePlaceholder() {
+        el.input.dataset.placeholderLg = INPUT_PLACEHOLDER;
+        if (window.refreshPlaceholders) window.refreshPlaceholders();
+        else el.input.placeholder = INPUT_PLACEHOLDER;
+    }
     function autoGrow() {
         el.input.style.height = 'auto';
         const h = el.input.scrollHeight;
@@ -1026,10 +1031,7 @@
         if (el.fab) el.fab.addEventListener('click', (e) => { e.preventDefault(); if (panelInView()) { el.input.focus(); } else { setExpanded(true); } });
         document.querySelectorAll('[data-ai-prompt]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); el.panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => send(b.dataset.aiPrompt), 400); }));
         initSpeech();
-        el.input.placeholder = inputPlaceholder();
-        const onBreakpoint = () => { if (!el.input.disabled && !speech.listening) el.input.placeholder = inputPlaceholder(); };
-        if (NARROW.addEventListener) NARROW.addEventListener('change', onBreakpoint);
-        else if (NARROW.addListener) NARROW.addListener(onBreakpoint);   // Safari < 14
+        restorePlaceholder();
 
         // deep link: ?ask=your+question sends a prompt on load (shareable)
         try { const q = new URLSearchParams(location.search).get('ask'); if (q) setTimeout(() => send(q), 600); } catch (e) { /* ignore */ }

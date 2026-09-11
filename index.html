@@ -34,7 +34,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/fontawesome.min.css"/>
-    <link rel="stylesheet" href="css/style.css?v=20260916">
+    <link rel="stylesheet" href="css/style.css?v=20260918">
     <script>
         // Apply saved theme before first paint to avoid a flash
         (function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('portfolio-theme');if(!t){var h=new Date().getHours();t=(h>=6&&h<18)?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
@@ -139,7 +139,7 @@
                         <div class="ai-panel__body" id="ai-chat-body" role="log" aria-live="polite"></div>
                         <div class="ai-panel__chips" id="ai-chips"></div>
                         <form class="ai-panel__input" id="ai-form" autocomplete="off">
-                            <textarea id="ai-chat-input" rows="1" placeholder="Ask about experience, skills or projects…" aria-label="Message the assistant"></textarea>
+                            <textarea id="ai-chat-input" rows="1" placeholder="Ask about experience, skills or projects…" data-placeholder-sm="Ask anything…" aria-label="Message the assistant"></textarea>
                             <button type="button" class="ai-tool-btn ai-mic-btn" id="ai-mic-btn" title="Voice input" hidden><i class="fas fa-microphone"></i></button>
                             <button type="button" class="ai-tool-btn ai-tts-btn is-active" id="ai-tts-btn" title="Answers are read aloud when you ask by voice" aria-pressed="true" hidden><i class="fas fa-volume-up"></i></button>
                             <button type="submit" class="ai-send-btn" id="ai-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
@@ -220,7 +220,7 @@
                 <div class="col-md-7 col-lg-5">
                     <div class="skill-search-wrapper">
                         <i class="fas fa-search skill-search-icon"></i>
-                        <input type="text" id="skill-search" class="skill-search-input" placeholder="Search skills (e.g. Next.js, Python, Swift, Docker)…" autocomplete="off">
+                        <input type="text" id="skill-search" class="skill-search-input" placeholder="Search skills (e.g. Next.js, Python, Swift, Docker)…" data-placeholder-sm="Search skills or tools…" autocomplete="off">
                         <button id="skill-search-clear" class="skill-search-clear" title="Clear" style="display:none"><i class="fas fa-times"></i></button>
                     </div>
                 </div>
