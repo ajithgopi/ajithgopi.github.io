@@ -6,10 +6,6 @@
  *   webllm   — real LLM in the browser via WebGPU (@mlc-ai/web-llm),
  *              loaded on demand; uses the built-in retrieval as RAG context
  *
- * Voices:
- *   system   — the browser's own synthesiser, scored so the best one wins
- *   natural  — Kokoro 82M (kokoro-js) on WebGPU, opt-in, downloaded once
- *
  * UI: streaming reveal, live reasoning trace, follow-up chips, page
  * actions, copy/regenerate, voice input, persistence, expand mode.
  * ============================================================= */
@@ -42,28 +38,8 @@
         `https://unpkg.com/@mlc-ai/web-llm@${WEBLLM_VERSION}/lib/index.js`
     ];
 
-    /* The browser's own voices are whatever the operating system happens to ship, and
-       on a machine with nothing neural installed the best of them still sounds like a
-       satnav. Kokoro is an 82M-parameter TTS model that runs in the page and fixes that
-       for everyone — but only on a GPU: measured on an M-series Mac it generates at
-       roughly half of real time on WebGPU and five times *slower* than real time on
-       wasm, which is worse than the voice it replaces. So it is offered where it can
-       actually keep up and nowhere else. fp16 rather than fp32 because the quantised
-       builds fall back to the CPU and lose the whole point. */
-    const KOKORO_VERSION = '1.2.1';
-    const KOKORO_CDNS = [
-        `https://cdn.jsdelivr.net/npm/kokoro-js@${KOKORO_VERSION}/dist/kokoro.web.js`,
-        `https://unpkg.com/kokoro-js@${KOKORO_VERSION}/dist/kokoro.web.js`
-    ];
-    const KOKORO_MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
-    const KOKORO_DTYPE = 'fp16';
-    const KOKORO_SIZE = '165 MB';
-    // The only voice the model card grades an A. am_michael is the best male one.
-    const KOKORO_VOICE = 'af_heart';
-
     let engine, settings, history = [], busy = false, aborter = null, lastUserText = '';
     let webllm = { engine: null, model: null }, webllmModule = null;
-    let hd = { status: 'off', tts: null, module: null, ctx: null, source: null, files: {}, seq: 0, card: null };
     let download = { seq: 0, active: false, promise: null, model: null, card: null };
     let onInitProgress = null;
     const INPUT_PLACEHOLDER = 'Ask about experience, skills, projects… (try /help)';
@@ -514,47 +490,12 @@
             cfgHtml += `<label>Model</label><select id="ai-webllm-model">${WEBLLM_MODELS.map(x => `<option value="${x.id}"${x.id === settings.webllmModel ? ' selected' : ''}>${x.label}</option>`).join('')}</select>
                 <div class="hint">Downloads once to your browser cache, then runs offline on your GPU. Answers are grounded in the same CV retrieval the built-in engine uses (RAG). The trace streams the model's own reasoning as it arrives — the <b>thinking</b> models reason out loud by design, the others are asked for a short thought block.</div>`;
         }
-        cfgHtml += voiceRowHtml();
-        cfg.innerHTML = cfgHtml;
-        m.appendChild(cfg);
-        const modelSel = cfg.querySelector('#ai-webllm-model');
-        if (modelSel) modelSel.addEventListener('change', (e) => selectModel(e.target.value));
-        const voiceSel = cfg.querySelector('#ai-voice-mode');
-        if (voiceSel) voiceSel.addEventListener('change', (e) => selectVoiceMode(e.target.value));
+        if (cfgHtml) {
+            cfg.innerHTML = cfgHtml;
+            m.appendChild(cfg);
+            cfg.querySelector('#ai-webllm-model').addEventListener('change', (e) => selectModel(e.target.value));
+        }
         m.querySelectorAll('[data-engine]').forEach(b => b.addEventListener('click', () => switchEngine(b.dataset.engine)));
-    }
-    /* The voice belongs in this menu rather than behind the speaker button: the button
-       is a mute switch during a conversation, and this is a one-off decision about what
-       gets downloaded. */
-    function voiceRowHtml() {
-        if (!hdSupported()) {
-            const why = navigator.gpu ? 'your browser is in data-saver mode' : 'this browser has no WebGPU';
-            return `<label>Voice</label><div class="hint">Answers are read by your browser's own voice — the best one your device has installed. A neural voice could run here instead, but ${why}, and without a GPU it generates several times slower than it speaks.</div>`;
-        }
-        const loading = hd.status === 'loading';
-        const natural = settings.hdVoice || hdReady();
-        return `<label>Voice</label><select id="ai-voice-mode"${loading ? ' disabled' : ''}>
-                <option value="system"${natural ? '' : ' selected'}>Browser voice — instant</option>
-                <option value="hd"${natural ? ' selected' : ''}>Natural · Kokoro 82M — ${KOKORO_SIZE}, once</option>
-            </select>
-            <div class="hint">${loading ? 'Downloading…' : hdReady() ? 'Kokoro is loaded and generating speech on your GPU.' : `Kokoro is an 82M-parameter TTS model that runs in this page. It is fetched once (${KOKORO_SIZE}) and cached by your browser, then generates each sentence on your GPU at about twice the speed it speaks. The browser voice covers the first sentence while it loads.`}</div>`;
-    }
-    function selectVoiceMode(mode) {
-        if (mode === 'hd') {
-            if (hdReady() || hd.status === 'loading') return;
-            startHdVoice();
-            return;
-        }
-        if (!settings.hdVoice && !hdReady()) return;
-        stopSpeaking();
-        hd.seq++;                        // abandons an in-flight load
-        hd.tts = null;
-        hd.status = 'off';
-        settings.hdVoice = false;
-        saveJSON(SETTINGS_KEY, settings);
-        removeVoiceCard();
-        renderEngineMenu();
-        refreshTtsBtn();
     }
     function selectModel(id) {
         if (id === settings.webllmModel && (download.active || webllm.model === id)) return;
@@ -588,11 +529,6 @@
         opts = opts || {};
         const text = String(rawText || '').trim();
         if (!text || busy) return;
-        stopSpeaking();                       // a new question always outranks the previous answer
-        // Chosen on an earlier visit: the speaker is already on, so its click never
-        // comes round again. Warm the voice on the question instead — it restores from
-        // cache in about a second, well inside the time an answer takes to arrive.
-        if (settings.speak && settings.hdVoice && !hdReady() && hd.status !== 'loading') startHdVoice({ quiet: true });
         if (download.active && settings.engine === 'webllm') { addSystemNote('⏳ The model is still downloading — chat resumes automatically when it\'s ready.'); return; }
         if (/^\/(clear|reset)$/i.test(text)) { clearChat(); return; }
         if (/^\/engine\b/i.test(text)) { el.engine.classList.add('is-open'); el.input.value = ''; return; }
@@ -733,12 +669,9 @@
         setChips(res.followups && res.followups.length ? res.followups : DEFAULT_CHIPS);
         scrollToBottom(true);
         if (window.AjithVisuals) window.AjithVisuals.burst(6);
-        // The speaker toggle governs every answer now; asking by voice switches it on.
-        if (!signal.aborted) speak(finalText);
     }
 
     function clearChat() {
-        stopSpeaking();
         history = []; saveJSON(STORE_KEY, history); engine.reset();
         el.body.innerHTML = '';
         welcome();
@@ -884,19 +817,18 @@
         scrollToBottom(true);
     }
 
-    /* ---------------- speech: input + output ---------------- */
+    /* ---------------- voice input ---------------- */
     /* Voice is a progressive enhancement, and plenty of real devices advertise it
        and then fail on first use — Android WebView and the in-app browsers built
        on it ship the constructor with no speech service behind it, and anything
        served over plain http is refused outright. Support is therefore probed
        before the button is ever shown, and a fatal failure retires it for good.
 
-       Output is deliberately tied to input: an answer is spoken only when the
-       question was asked out loud, so a typed conversation stays silent. */
+       Answers are never read back: the assistant listens, it does not speak. */
 
     const VOICE_BLOCKED_KEY = 'ajith-ai-voice-unsupported';
     const SPEECH_LANG = 'en-US';
-    const speech = { input: false, tts: false, listening: false, speaking: false, voice: null, natural: false, primed: false, seq: 0 };
+    const speech = { input: false, listening: false };
 
     /* Every failure here used to be swallowed, so a blocked mic looked identical to a
        dead button. Each one now says what happened and what to do about it. */
@@ -940,463 +872,14 @@
         } catch (e) { return true; }
     }
 
-    /* ----- speech synthesis ----- */
-    function probeTTS() {
-        return !!(window.speechSynthesis && typeof window.SpeechSynthesisUtterance === 'function' && typeof speechSynthesis.speak === 'function');
-    }
-    /* getVoices() is populated asynchronously in Chrome, so the first call is often
-       empty; a browser that still has none after voiceschanged has no synthesiser. */
-    function loadVoices() {
-        return new Promise(resolve => {
-            const have = speechSynthesis.getVoices();
-            if (have && have.length) return resolve(have);
-            let done = false;
-            const finish = () => { if (done) return; done = true; resolve(speechSynthesis.getVoices() || []); };
-            speechSynthesis.addEventListener('voiceschanged', finish, { once: true });
-            setTimeout(finish, 2500);
-        });
-    }
-    /* Picking a voice by name, as this used to, lands on whatever the list happens to
-       contain — and the first match was usually Samantha or Zira, both formant-era
-       voices that sound like a satnav from 2009. The API exposes no quality field, so
-       the naming conventions each platform uses are the only signal there is:
-
-         "Microsoft Ava Online (Natural)"  Azure neural, in Edge everywhere and Windows 11
-         "Ava (Premium)" / "(Enhanced)"    Apple's downloadable neural voices
-         "Google US English"               Chrome's network voice — dated, but not robotic
-         "Samantha", "Daniel"              Apple's built-in compact voices
-         "Microsoft David Desktop"         SAPI5, the oldest thing still shipping
-
-       Whatever scores highest wins, so a browser that has a neural voice always uses
-       it and one that doesn't still gets the best of what it has. */
-    const VOICE_TIERS = [
-        [/\(natural\)|\bneural\b/i, 100],
-        [/\(premium\)/i, 90],
-        [/\(enhanced\)/i, 80],
-        [/^google\s/i, 60],
-        [/\bdesktop\b/i, 5]
-    ];
-    /* Anything at this tier or above is worth trusting with a full paragraph and a
-       normal speaking rate; the older voices need more help than that. */
-    const VOICE_NATURAL_FROM = 80;
-    /* macOS ships two dozen novelty voices — "Bad News" sings, "Zarvox" is a robot by
-       design — and Linux falls back to eSpeak. None of them is ever the right answer. */
-    const VOICE_REJECT = /^(albert|agnes|bad news|bahh|bells|boing|bruce|bubbles|cellos|deranged|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|pipe organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|victoria|whisper|wobble|zarvox)\b|espeak|festival|pico/i;
-
-    function voiceScore(v) {
-        const name = v.name || '';
-        if (VOICE_REJECT.test(name)) return -1;
-        let score = 20;
-        for (const [re, s] of VOICE_TIERS) if (re.test(name)) { score = s; break; }
-        // The 2023-era Azure and Apple voices, which are a clear step up from their
-        // stablemates even inside the same tier.
-        if (/(ava|emma|andrew|brian|jenny|aria|michelle|zoe|serena|nicky|aaron)/i.test(name)) score += 6;
-        if (v.localService === false) score += 4;       // a network voice is a modern one
-        const lang = (v.lang || '').replace('_', '-');
-        if (/^en-US/i.test(lang)) score += 8;
-        else if (/^en-(GB|AU|IE|CA)/i.test(lang)) score += 4;
-        return score;
-    }
-    function pickVoice(list) {
-        const pool = list.filter(v => /^en(-|_|$)/i.test(v.lang || ''));
-        const from = pool.length ? pool : list;
-        let best = null, bestScore = -Infinity;
-        for (const v of from) {
-            const score = voiceScore(v);
-            if (score > bestScore) { best = v; bestScore = score; }
-        }
-        if (best && bestScore >= 0) return best;
-        return from.find(v => v.default) || from[0] || null;   // every voice was rejected
-    }
-    /* Markdown read aloud is unbearable — asterisks become "star" and a URL is
-       spelled out character by character. Strip it back to the sentence underneath,
-       and cap the length so a long answer doesn't become a three-minute monologue. */
-    function speakableText(md) {
-        let s = String(md || '')
-            .replace(/```[\s\S]*?```/g, ' ')
-            .replace(/`([^`]*)`/g, '$1')
-            .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-            .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-            .replace(/https?:\/\/\S+/g, 'the link on screen')
-            .replace(/^\s*\|.*\|\s*$/gm, ' ')
-            .replace(/^::bar\s+\d+\s*$/gm, '')                     // skill-bar directive, not prose
-            .replace(/^\s{0,3}#{1,6}\s*/gm, '')
-            .replace(/^\s*(?:[-*•]|\d+\.)\s+/gm, '')
-            .replace(/\*\*|__|~~|\*|_/g, '')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{2BFF}\u{FE0F}]/gu, '')
-            .replace(/[ \t]+/g, ' ')
-            .replace(/\n{2,}/g, '\n')
-            .trim();
-        /* Written shorthand reads badly out loud whatever the voice: "e.g." comes out
-           as "ee gee", "6+" as "six plus", and an em dash gets no pause at all where a
-           person would take one. Rewriting it as the words underneath is most of what
-           separates a sentence that sounds spoken from one that sounds parsed. */
-        s = s
-            .replace(/\be\.g\.,?\s*/gi, 'for example, ')
-            .replace(/\bi\.e\.,?\s*/gi, 'that is, ')
-            .replace(/\betc\.(?=\s+[A-Z"'])/g, 'and so on.')        // "etc." ending a sentence
-            .replace(/\betc\.?/gi, 'and so on')
-            .replace(/\bvs\.?(?=\s)/gi, 'versus')
-            .replace(/\bapprox\.?(?=\s)/gi, 'roughly')
-            .replace(/\s*[—–]\s*/g, ', ')                    // em and en dash -> a real pause
-            .replace(/\s*\(([^)]{1,70})\)\s*/g, ', $1, ')             // asides read as asides
-            .replace(/(\d)\s*\+/g, 'over $1')                         // "6+ years" -> "over 6 years"
-            .replace(/\b(\d{4})\s*[-–]\s*(\d{4})\b/g, '$1 to $2')
-            .replace(/\s*&\s*/g, ' and ')
-            .replace(/\b([a-z]{3,})\/([a-z]{3,})\b/gi, '$1 or $2')     // "React/Angular"
-            .replace(/\.js\b/gi, ' J S')                               // "Node.js" -> "Node J S"
-            .replace(/\s*,\s*,\s*/g, ', ')
-            .replace(/,\s*([.!?])/g, '$1')
-            .replace(/[ \t]+/g, ' ')
-            .trim();
-        if (s.length > 900) {
-            const cut = s.slice(0, 900);
-            const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
-            s = (stop > 500 ? cut.slice(0, stop + 1) : cut.replace(/\s+\S*$/, '') + '.') + ' The rest is on screen.';
-        }
-        return s;
-    }
-    /* Chrome silently stops a single utterance after roughly fifteen seconds, so the
-       answer is queued in pieces rather than as one long one. Pieces cost something
-       though: every boundary is a hard reset of intonation, and on a network voice it
-       is an audible gap while the next clip is fetched. A neural voice earns a longer
-       run because it actually does something with the extra context; the compact ones
-       have nothing to lose, so they stay short enough to be safe. */
-    function chunkForSpeech(text, budget) {
-        budget = budget || (speech.natural ? 320 : 200);
-        const out = [];
-        for (const para of text.split(/\n+/)) {
-            let buf = '';
-            for (const sentence of (para.match(/[^.!?…]+[.!?…]*\s*/g) || [para])) {
-                if (buf && (buf + sentence).length > budget) { out.push(buf.trim()); buf = ''; }
-                buf += sentence;
-            }
-            if (buf.trim()) out.push(buf.trim());
-        }
-        // A fragment with no end punctuation is read with the pitch still rising, which
-        // is what makes a chunked answer sound like it was cut off mid-thought.
-        return out.filter(Boolean).map(part => /[.!?…,;:]$/.test(part) ? part : part + '.');
-    }
-    /* Chrome abandons the queue if an utterance runs much past fifteen seconds, and a
-       pause/resume pair on a timer is the long-standing way to keep it alive. Safari
-       stutters when given the same treatment, so it is left alone. */
-    let keepAlive = null;
-    function startKeepAlive() {
-        if (keepAlive || !/Chrome\//.test(navigator.userAgent || '')) return;
-        keepAlive = setInterval(() => {
-            if (!speech.speaking) return;
-            try { speechSynthesis.pause(); speechSynthesis.resume(); } catch (e) { /* ignore */ }
-        }, 9000);
-    }
-    function stopKeepAlive() { if (keepAlive) { clearInterval(keepAlive); keepAlive = null; } }
-
-    function setSpeaking(on) {
-        speech.speaking = on;
-        el.panel.classList.toggle('is-speaking', on);
-        if (on) startKeepAlive(); else stopKeepAlive();
-        refreshTtsBtn();
-    }
-    function speak(md) {
-        if (!settings.speak || (!speech.tts && !hdReady())) return;
-        const text = speakableText(md);
-        if (!text) return;
-        stopSpeaking();
-        const seq = ++speech.seq;
-        // The natural voice pays for every chunk boundary in latency rather than in
-        // prosody, so it gets shorter pieces: the first one is the only wait there is.
-        if (hdReady()) { speakHD(chunkForSpeech(text, 180), seq); return; }
-        const parts = chunkForSpeech(text);
-        if (!parts.length) return;
-        setSpeaking(true);
-        parts.forEach((part, i) => {
-            const u = new SpeechSynthesisUtterance(part);
-            if (speech.voice) u.voice = speech.voice;
-            u.lang = (speech.voice && speech.voice.lang) || SPEECH_LANG;
-            // A neural voice already paces itself, and pushing it faster is what makes
-            // it sound synthetic again. The compact voices run flat and hurried at 1.0,
-            // so they get eased off instead.
-            u.rate = speech.natural ? 1 : 0.95;
-            u.pitch = 1;
-            if (i === parts.length - 1) u.onend = () => { if (seq === speech.seq) setSpeaking(false); };
-            u.onerror = (e) => {
-                if (seq !== speech.seq) return;                       // a newer answer took over
-                const err = e && e.error;
-                setSpeaking(false);
-                if (err === 'interrupted' || err === 'canceled') return;
-                speech.tts = false;                                   // synthesiser is there but not working
-                refreshTtsBtn();
-            };
-            speechSynthesis.speak(u);
-        });
-    }
-    function stopSpeaking() {
-        speech.seq++;
-        // stop() fires onended, which is what releases whatever speakHD is awaiting.
-        if (hd.source) { try { hd.source.stop(); } catch (e) { /* already finished */ } hd.source = null; }
-        if (speech.tts) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
-        setSpeaking(false);
-    }
-    /* Safari and Chrome on mobile only let speech begin inside a user gesture, and the
-       answer arrives seconds after the tap. A silent utterance on the mic press unlocks
-       the synthesiser so the real one is allowed through later. */
-    function primeSpeech() {
-        if (!speech.tts || !settings.speak || speech.primed) return;
-        try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); speech.primed = true; }
-        catch (e) { /* ignore */ }
-    }
-
-    /* ---------------- natural voice (Kokoro 82M, opt-in) ---------------- */
-    /* Everything here is lazy: nothing is imported, fetched or compiled until someone
-       asks for the voice, and a visitor who never turns the speaker on pays nothing. */
-
-    function hdSupported() {
-        if (!navigator.gpu) return false;
-        // Honour the browser's data-saver switch; 165 MB is not a background detail.
-        const net = navigator.connection;
-        if (net && net.saveData) return false;
-        return true;
-    }
-    function hdReady() { return !!hd.tts; }
-
-    async function importKokoro() {
-        if (hd.module) return hd.module;
-        const errors = [];
-        for (const url of KOKORO_CDNS) {
-            try {
-                const mod = await import(url);
-                if (!mod || !mod.KokoroTTS) throw new Error('unexpected module shape');
-                hd.module = mod;
-                return mod;
-            } catch (e) {
-                errors.push(`${new URL(url).host}: ${e && e.message ? e.message : e}`);
-            }
-        }
-        throw new Error('the library would not load from any CDN (' + errors.join(' \u00b7 ') + ')');
-    }
-
-    /* transformers.js reports progress per file, and the weights arrive alongside the
-       voice embeddings and the runtime, so the bar tracks the sum rather than whichever
-       file happens to be talking. */
-    function hdProgress(p) {
-        if (!p) return;
-        if (p.file && (p.status === 'progress' || p.status === 'done')) {
-            const f = hd.files[p.file] || (hd.files[p.file] = { loaded: 0, total: 0 });
-            f.total = p.total || f.total;
-            f.loaded = p.status === 'done' ? (f.total || f.loaded) : (p.loaded || f.loaded);
-        }
-        let loaded = 0, total = 0;
-        for (const k in hd.files) { loaded += hd.files[k].loaded; total += hd.files[k].total; }
-        updateVoiceCard(total ? loaded / total : 0, loaded, total);
-    }
-
-    function renderVoiceCard(cached) {
-        removeVoiceCard();
-        el.body.insertAdjacentHTML('beforeend', `<div class="chat-msg system ai-vdl" id="ai-vdl"><div class="chat-bubble ai-dl__card" role="status" aria-live="polite">
-            <div class="ai-dl__head"><i class="fas ${cached ? 'fa-volume-high' : 'fa-download'}"></i><b id="ai-vdl-title">${cached ? 'Loading the natural voice' : 'Downloading the natural voice'}</b><span class="ai-dl__pct" id="ai-vdl-pct">0%</span></div>
-            <div class="ai-dl__bar"><span id="ai-vdl-bar" style="width:0%"></span></div>
-            <div class="ai-dl__text" id="ai-vdl-text">${cached ? 'Already downloaded \u2014 handing it to your GPU.' : 'Kokoro 82M, fetched once and cached by your browser. Chat carries on as normal; answers use the browser voice until this is ready.'}</div>
-            <div class="ai-dl__foot"><span class="ai-dl__eta" id="ai-vdl-eta"><i class="fas fa-circle-notch fa-spin"></i> starting</span><button type="button" class="action-chip" id="ai-vdl-cancel"><i class="fas fa-xmark"></i> Keep the browser voice</button></div>
-        </div></div>`);
-        hd.card = $('ai-vdl');
-        $('ai-vdl-cancel').addEventListener('click', cancelHdVoice);
-        scrollToBottom(true);
-    }
-    function removeVoiceCard() {
-        el.body.querySelectorAll('.ai-vdl').forEach(n => n.remove());
-        hd.card = null;
-    }
-    function updateVoiceCard(fraction, loaded, total) {
-        if (!hd.card) return;
-        const pct = Math.max(0, Math.min(100, Math.round(fraction * 100)));
-        const pctEl = $('ai-vdl-pct'), bar = $('ai-vdl-bar'), eta = $('ai-vdl-eta');
-        if (pctEl) pctEl.textContent = pct + '%';
-        if (bar) bar.style.width = pct + '%';
-        if (eta) eta.innerHTML = pct >= 100
-            ? '<i class="fas fa-bolt"></i> compiling for your GPU'
-            : `<i class="fas fa-circle-notch fa-spin"></i> ${(loaded / 1e6).toFixed(0)} of ${(total / 1e6).toFixed(0)} MB`;
-    }
-
-    function cancelHdVoice() {
-        hd.seq++;                        // whatever is in flight stops counting
-        hd.status = 'off';
-        hd.files = {};
-        settings.hdVoice = false;
-        saveJSON(SETTINGS_KEY, settings);
-        removeVoiceCard();
-        renderEngineMenu();
-        refreshTtsBtn();
-        addSystemNote('<i class="fas fa-volume-low"></i> Staying with the browser voice. Whatever was already downloaded is cached, so turning the natural voice on later picks up where this left off.');
-    }
-
-    /* Returns nothing useful — the voice simply becomes available, or doesn't, and the
-       speaker keeps working either way. */
-    async function startHdVoice(opts) {
-        opts = opts || {};
-        if (hd.tts || hd.status === 'loading') return;
-        if (!hdSupported()) return;
-        const seq = ++hd.seq;
-        hd.status = 'loading';
-        hd.files = {};
-        if (!opts.quiet) renderVoiceCard(!!settings.hdVoice);
-        refreshTtsBtn();
-        try {
-            const mod = await importKokoro();
-            if (seq !== hd.seq) return;
-            const tts = await mod.KokoroTTS.from_pretrained(KOKORO_MODEL, {
-                dtype: KOKORO_DTYPE,
-                device: 'webgpu',
-                progress_callback: (p) => { if (seq === hd.seq) hdProgress(p); }
-            });
-            if (seq !== hd.seq) return;               // cancelled while it loaded
-            hd.tts = tts;
-            hd.status = 'ready';
-            settings.hdVoice = true;
-            saveJSON(SETTINGS_KEY, settings);
-            removeVoiceCard();
-            if (!opts.quiet) addSystemNote('<i class="fas fa-check-circle"></i> Natural voice ready \u2014 answers are now read by <b>Kokoro 82M</b> running on your GPU, not by your operating system.');
-        } catch (e) {
-            if (seq !== hd.seq) return;
-            hd.status = 'failed';
-            removeVoiceCard();
-            console.warn('[AjithAI] natural voice unavailable:', e);
-            if (!opts.quiet) addSystemNote(`<i class="fas fa-exclamation-triangle"></i> The natural voice couldn't load \u2014 ${escapeHtml(e && e.message ? e.message : String(e))}. Answers are still read aloud by your browser's own voice.`);
-        }
-        renderEngineMenu();
-        refreshTtsBtn();
-    }
-
-    /* One AudioContext for the life of the page, opened on the click that turns the
-       speaker on — browsers refuse to start audio outside a gesture. */
-    function hdContext() {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        if (!hd.ctx) { try { hd.ctx = new AC(); } catch (e) { return null; } }
-        if (hd.ctx.state === 'suspended') hd.ctx.resume();
-        return hd.ctx;
-    }
-    function hdPlay(ctx, audio, seq) {
-        return new Promise(resolve => {
-            const pcm = audio.audio || audio.data;
-            if (!pcm || !pcm.length) return resolve();
-            const buf = ctx.createBuffer(1, pcm.length, audio.sampling_rate);
-            buf.getChannelData(0).set(pcm);
-            const src = ctx.createBufferSource();
-            src.buffer = buf;
-            src.connect(ctx.destination);
-            src.onended = () => { if (hd.source === src) hd.source = null; resolve(); };
-            if (seq !== speech.seq) return resolve();
-            hd.source = src;
-            src.start();
-        });
-    }
-    /* Generation runs at about half of real time on a GPU, so the next sentence is
-       produced while the current one plays and playback never catches up with the
-       queue. Only the first sentence is a real wait, which is why the chunks handed
-       here are short. */
-    async function speakHD(parts, seq) {
-        const ctx = hdContext();
-        if (!ctx || !parts.length) return;
-        setSpeaking(true);
-        let pending = null;
-        const drop = () => { if (pending) { pending.catch(() => { }); pending = null; } };
-        try {
-            pending = hd.tts.generate(parts[0], { voice: KOKORO_VOICE });
-            for (let i = 0; i < parts.length; i++) {
-                const audio = await pending;
-                pending = null;
-                if (seq !== speech.seq) return;
-                if (i + 1 < parts.length) pending = hd.tts.generate(parts[i + 1], { voice: KOKORO_VOICE });
-                await hdPlay(ctx, audio, seq);
-                if (seq !== speech.seq) return drop();
-            }
-        } catch (e) {
-            if (seq !== speech.seq) return drop();
-            console.warn('[AjithAI] natural voice failed mid-answer:', e);
-            hd.tts = null;                            // the browser voice takes over from here
-            hd.status = 'failed';
-            renderEngineMenu();
-        } finally {
-            drop();
-            if (seq === speech.seq) setSpeaking(false);
-        }
-    }
-
-    /* Shown once, the first time someone turns the speaker on and lands on a voice
-       that is the best their machine has and still sounds like 2009. */
-    function maybeOfferHdVoice() {
-        if (settings.hdOffered || settings.hdVoice || speech.natural || !hdSupported()) return;
-        settings.hdOffered = true;
-        saveJSON(SETTINGS_KEY, settings);
-        const name = (speech.voice && speech.voice.name) || 'your browser\u2019s voice';
-        addSystemNote(`<i class="fas fa-wand-magic-sparkles"></i> Answers are being read by <b>${escapeHtml(name)}</b> \u2014 the best voice installed on this device, and a fairly robotic one. A neural voice can run here instead: <b>Kokoro 82M</b>, ${KOKORO_SIZE} fetched once and then cached, generated on your GPU. <button type="button" class="action-chip" id="ai-hd-yes"><i class="fas fa-volume-high"></i> Use the natural voice</button>`);
-        const btn = $('ai-hd-yes');
-        if (btn) btn.addEventListener('click', () => { btn.disabled = true; startHdVoice(); });
-    }
-
-    /* ----- controls ----- */
-    function refreshTtsBtn() {
-        if (!el.tts) return;
-        // Governs every answer, so it belongs on any device that can speak — whether
-        // or not that device can also listen.
-        const show = speech.tts || hdReady() || hd.status === 'loading';
-        el.tts.hidden = !show;
-        if (!show) return;
-        const on = !!settings.speak;
-        el.tts.classList.toggle('is-active', on && !speech.speaking);
-        el.tts.classList.toggle('is-speaking', speech.speaking);
-        el.tts.setAttribute('aria-pressed', on ? 'true' : 'false');
-        el.tts.innerHTML = `<i class="fas ${speech.speaking ? 'fa-stop' : on ? 'fa-volume-up' : 'fa-volume-mute'}"></i>`;
-        const voiced = hdReady() ? ' in a natural voice' : '';
-        const label = speech.speaking ? 'Stop speaking'
-            : on ? `Answers are read aloud${voiced} — click to mute`
-                : 'Answers are silent — click to hear them read aloud';
-        el.tts.title = label;
-        el.tts.setAttribute('aria-label', label);
-    }
     function setVoiceInputEnabled(on, why) {
         speech.input = on;
         el.mic.hidden = !on;
         if (!on && why) console.info('[AjithAI] voice input unavailable:', why);
-        refreshTtsBtn();
     }
 
     function initSpeech() {
         el.mic.hidden = true;                                  // stay hidden until the probe passes
-        if (el.tts) {
-            el.tts.hidden = true;
-            el.tts.addEventListener('click', () => {
-                if (speech.speaking) { stopSpeaking(); return; }
-                settings.speak = !settings.speak;
-                settings.speakChosen = true;
-                saveJSON(SETTINGS_KEY, settings);
-                refreshTtsBtn();
-                primeSpeech();
-                if (!settings.speak) return;
-                hdContext();                                   // audio may only open inside a gesture
-                // Chosen on a previous visit: the weights are already cached, so this is
-                // a second or two and needs no announcement.
-                if (settings.hdVoice) startHdVoice({ quiet: true });
-                else maybeOfferHdVoice();
-            });
-        }
-        if (probeTTS()) {
-            const chooseVoice = list => {
-                speech.tts = list.length > 0;
-                speech.voice = speech.tts ? pickVoice(list) : null;
-                speech.natural = !!speech.voice && voiceScore(speech.voice) >= VOICE_NATURAL_FROM;
-                refreshTtsBtn();
-            };
-            loadVoices().then(chooseVoice);
-            // Edge publishes its neural voices well after the local ones, and a voice
-            // downloaded mid-visit shows up the same way, so keep taking the best offer.
-            speechSynthesis.addEventListener('voiceschanged', () => {
-                if (speech.speaking) return;                       // not mid-answer
-                chooseVoice(speechSynthesis.getVoices() || []);
-            });
-        }
-        window.addEventListener('pagehide', stopSpeaking);     // speech outlives the page otherwise
-
         const why = probeVoiceInput();
         if (why) { setVoiceInputEnabled(false, why); return; }
         hasMicrophone().then(found => {
@@ -1419,15 +902,6 @@
         el.mic.addEventListener('click', () => {
             if (speech.listening) { cancelled = true; try { rec.stop(); } catch (e) { /* ignore */ } return; }
             if (busy || el.input.disabled) return;
-            stopSpeaking();                                    // never listen over our own voice
-            // Asking out loud is a request to be answered out loud, so the speaker
-            // switches itself on — and stays on until it is muted.
-            if (!settings.speak) {
-                settings.speak = true; settings.speakChosen = true;
-                saveJSON(SETTINGS_KEY, settings);
-                refreshTtsBtn();
-            }
-            primeSpeech();
             cancelled = false; heard = '';
             rec = new SR();
             rec.lang = SPEECH_LANG; rec.interimResults = true; rec.continuous = false;
@@ -1471,15 +945,11 @@
             panel: $('ai-assistant'), body: $('ai-chat-body'), input: $('ai-chat-input'), send: $('ai-send-btn'), form: $('ai-form'),
             chips: $('ai-chips'), status: $('ai-status'), clear: $('ai-clear-btn'), expand: $('ai-expand-btn'), info: $('ai-info'), infoBtn: $('ai-info-btn'),
             engine: $('ai-engine'), engineBtn: $('ai-engine-btn'), engineMenu: $('ai-engine-menu'), progress: $('ai-progress'), progressBar: $('ai-progress-bar'),
-            mic: $('ai-mic-btn'), tts: $('ai-tts-btn'), backdrop: $('ai-backdrop'), placeholder: $('ai-panel-placeholder'), fab: $('floating-ai-btn')
+            mic: $('ai-mic-btn'), backdrop: $('ai-backdrop'), placeholder: $('ai-panel-placeholder'), fab: $('floating-ai-btn')
         };
         if (!el.panel || !el.body || !window.AjithAI) return;
         engine = AjithAI.createEngine();
-        settings = Object.assign({ engine: 'builtin', webllmModel: WEBLLM_MODELS[0].id, speak: false, speakChosen: false, hdVoice: false, hdOffered: false }, loadJSON(SETTINGS_KEY, {}));
-        // Speaking used to default on and was persisted for everyone who ever changed
-        // an engine, so a stored `true` is only trustworthy once someone has actually
-        // picked. Otherwise the mute default would never reach returning visitors.
-        if (!settings.speakChosen) settings.speak = false;
+        settings = Object.assign({ engine: 'builtin', webllmModel: WEBLLM_MODELS[0].id }, loadJSON(SETTINGS_KEY, {}));
         try { const qe = new URLSearchParams(location.search).get('engine'); if (qe && ENGINE_META[qe]) settings.engine = qe; } catch (e) { /* ignore */ }
         if (!ENGINE_META[settings.engine]) settings.engine = 'builtin';
         if (!WEBLLM_MODELS.some(m => m.id === settings.webllmModel)) settings.webllmModel = WEBLLM_MODELS[0].id;

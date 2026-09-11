@@ -997,13 +997,7 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
 .ai-mic-btn { width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px; }
 .ai-mic-btn.is-listening { color: #ef4444; border-color: rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.12); animation: pulseSoft 1s infinite; }
 @keyframes pulseSoft { 50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.15); } }
-.ai-mic-btn[hidden], .ai-tts-btn[hidden] { display: none; }
-.ai-tts-btn { width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px; }
-.ai-tts-btn.is-active { color: var(--primary); border-color: var(--border-highlight); background: var(--primary-glow); }
-.ai-tts-btn.is-speaking { color: #22c55e; border-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.12); animation: pulseSpeak 1.4s infinite; }
-@keyframes pulseSpeak { 50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.15); } }
-/* The orb keeps breathing while the answer is being read out. */
-.ai-panel.is-speaking .ai-orb { animation-duration: 1.4s; }
+.ai-mic-btn[hidden] { display: none; }
 .ai-panel__foot {
     display: flex;
     justify-content: space-between;
@@ -1096,7 +1090,7 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
     .ai-panel__input { padding: 0.6rem 0.6rem 0.6rem 0.75rem; gap: 6px; }
     /* Mic + speaker + send beside the field is tight at this width, so the buttons
        give up the room rather than the textarea. */
-    .ai-mic-btn, .ai-tts-btn, .ai-send-btn { width: 40px; height: 40px; border-radius: 12px; font-size: 0.9rem; }
+    .ai-mic-btn, .ai-send-btn { width: 40px; height: 40px; border-radius: 12px; font-size: 0.9rem; }
 }
 
 /* =============================================================
@@ -1435,8 +1429,8 @@ footer .big { font-size: clamp(1.9rem, 5vw, 3.2rem); text-wrap: balance; font-we
 }
 
 /* ---------- Model download card ---------- */
-.ai-dl, .ai-vdl { max-width: 100% !important; width: 100%; }
-.ai-dl .chat-bubble.ai-dl__card, .ai-vdl .chat-bubble.ai-dl__card { text-align: left; font-family: var(--font-body); font-size: 0.86rem; color: var(--text); border: 1px solid var(--border-highlight); border-style: solid; background: var(--bg-card-solid); padding: 0.9rem 1rem; border-radius: 14px; box-shadow: var(--shadow-sm); }
+.ai-dl { max-width: 100% !important; width: 100%; }
+.ai-dl .chat-bubble.ai-dl__card { text-align: left; font-family: var(--font-body); font-size: 0.86rem; color: var(--text); border: 1px solid var(--border-highlight); border-style: solid; background: var(--bg-card-solid); padding: 0.9rem 1rem; border-radius: 14px; box-shadow: var(--shadow-sm); }
 .ai-dl__head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .ai-dl__head i { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--primary-glow); color: var(--primary); flex-shrink: 0; }
 .ai-dl__head b { font-weight: 600; flex: 1; }
