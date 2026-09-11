@@ -666,8 +666,8 @@
         setChips(res.followups && res.followups.length ? res.followups : DEFAULT_CHIPS);
         scrollToBottom(true);
         if (window.AjithVisuals) window.AjithVisuals.burst(6);
-        // Spoken question in, spoken answer out — a typed question stays silent.
-        if (opts.voice && !signal.aborted) speak(finalText);
+        // The speaker toggle governs every answer now; asking by voice switches it on.
+        if (!signal.aborted) speak(finalText);
     }
 
     function clearChat() {
@@ -712,6 +712,24 @@
         }
     }
 
+    /* Moving a subtree in the DOM blurs whatever inside it had focus, and both the
+       expand and the collapse reparent the panel. Carry the caret across the move so
+       a half-typed question keeps its cursor and the user never has to click twice. */
+    function keepFocus(mutate) {
+        const active = document.activeElement;
+        const held = active && active !== document.body && el.panel.contains(active);
+        let sel = null;
+        if (held && typeof active.selectionStart === 'number') {
+            try { sel = [active.selectionStart, active.selectionEnd, active.selectionDirection || 'none']; } catch (e) { /* not a text field */ }
+        }
+        mutate();
+        if (!held) return;
+        // preventScroll: the panel is mid-flight, and letting the browser chase the
+        // field would fight the morph.
+        try { active.focus({ preventScroll: true }); } catch (e) { active.focus(); }
+        if (sel) { try { active.setSelectionRange(sel[0], sel[1], sel[2]); } catch (e) { /* ignore */ } }
+    }
+
     function setPanelBox(r) {
         const st = el.panel.style;
         st.top = r.top + 'px'; st.left = r.left + 'px';
@@ -734,7 +752,7 @@
         landing = false;
         el.panel.classList.remove('is-landing');
         st.top = st.left = st.width = st.height = '';
-        el.placeholder.insertAdjacentElement('afterend', el.panel);
+        keepFocus(() => el.placeholder.insertAdjacentElement('afterend', el.panel));
         el.placeholder.classList.remove('is-active');
         el.placeholder.style.height = '';
     }
@@ -776,7 +794,7 @@
             el.placeholder.style.height = el.panel.offsetHeight + 'px';
             el.placeholder.classList.add('is-active');
             // Reparent to <body> so the fixed panel escapes the hero's stacking context
-            document.body.appendChild(el.panel);
+            keepFocus(() => document.body.appendChild(el.panel));
             el.panel.classList.add('is-expanded');
             lockScroll(true);
         } else {
@@ -965,9 +983,9 @@
     /* ----- controls ----- */
     function refreshTtsBtn() {
         if (!el.tts) return;
-        // The toggle only ever governs replies to spoken questions, so it is pointless
-        // — and confusing — on a device that cannot listen in the first place.
-        const show = speech.tts && speech.input;
+        // Governs every answer, so it belongs on any device that can speak — whether
+        // or not that device can also listen.
+        const show = speech.tts;
         el.tts.hidden = !show;
         if (!show) return;
         const on = !!settings.speak;
@@ -976,8 +994,8 @@
         el.tts.setAttribute('aria-pressed', on ? 'true' : 'false');
         el.tts.innerHTML = `<i class="fas ${speech.speaking ? 'fa-stop' : on ? 'fa-volume-up' : 'fa-volume-mute'}"></i>`;
         const label = speech.speaking ? 'Stop speaking'
-            : on ? 'Answers are read aloud when you ask by voice — click to mute'
-                : 'Spoken answers are muted — click to unmute';
+            : on ? 'Answers are read aloud — click to mute'
+                : 'Answers are silent — click to hear them read aloud';
         el.tts.title = label;
         el.tts.setAttribute('aria-label', label);
     }
@@ -995,6 +1013,7 @@
             el.tts.addEventListener('click', () => {
                 if (speech.speaking) { stopSpeaking(); return; }
                 settings.speak = !settings.speak;
+                settings.speakChosen = true;
                 saveJSON(SETTINGS_KEY, settings);
                 refreshTtsBtn();
                 primeSpeech();
@@ -1032,6 +1051,13 @@
             if (speech.listening) { cancelled = true; try { rec.stop(); } catch (e) { /* ignore */ } return; }
             if (busy || el.input.disabled) return;
             stopSpeaking();                                    // never listen over our own voice
+            // Asking out loud is a request to be answered out loud, so the speaker
+            // switches itself on — and stays on until it is muted.
+            if (!settings.speak) {
+                settings.speak = true; settings.speakChosen = true;
+                saveJSON(SETTINGS_KEY, settings);
+                refreshTtsBtn();
+            }
             primeSpeech();
             cancelled = false; heard = '';
             rec = new SR();
@@ -1049,8 +1075,7 @@
                 if (VOICE_FATAL.indexOf(e.error) >= 0) { blockVoice(); setVoiceInputEnabled(false, e.error); }
             };
             // Sending on end (not on the final result) keeps a deliberate stop from firing one off.
-            // `voice: true` is what earns the answer a spoken reply.
-            rec.onend = () => { setListening(false); if (!cancelled && heard) send(heard, { voice: true }); };
+            rec.onend = () => { setListening(false); if (!cancelled && heard) send(heard); };
             try { rec.start(); }
             catch (err) { setListening(false); addSystemNote(`<i class="fas fa-microphone-slash"></i> Couldn't start voice input (${escapeHtml(err.message || err.name || String(err))}).`); }
         });
@@ -1081,7 +1106,11 @@
         };
         if (!el.panel || !el.body || !window.AjithAI) return;
         engine = AjithAI.createEngine();
-        settings = Object.assign({ engine: 'builtin', webllmModel: WEBLLM_MODELS[0].id, speak: true }, loadJSON(SETTINGS_KEY, {}));
+        settings = Object.assign({ engine: 'builtin', webllmModel: WEBLLM_MODELS[0].id, speak: false, speakChosen: false }, loadJSON(SETTINGS_KEY, {}));
+        // Speaking used to default on and was persisted for everyone who ever changed
+        // an engine, so a stored `true` is only trustworthy once someone has actually
+        // picked. Otherwise the mute default would never reach returning visitors.
+        if (!settings.speakChosen) settings.speak = false;
         try { const qe = new URLSearchParams(location.search).get('engine'); if (qe && ENGINE_META[qe]) settings.engine = qe; } catch (e) { /* ignore */ }
         if (!ENGINE_META[settings.engine]) settings.engine = 'builtin';
         if (!WEBLLM_MODELS.some(m => m.id === settings.webllmModel)) settings.webllmModel = WEBLLM_MODELS[0].id;
