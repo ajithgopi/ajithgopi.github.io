@@ -562,13 +562,25 @@
         if (useLLM && offDomain) steps.push({ icon: 'fa-shield-halved', text: `Nothing in the CV covers this — the model gets a scope-only prompt with no résumé to draw on, and its reply is checked before it is shown.` });
         if (useLLM) steps.push({ icon: 'fa-magic', text: `Handing retrieved context to ${settings.webllmModel.split('-q4')[0]} (WebGPU) as RAG context${showThought ? ' — its own reasoning streams below' : ''}…` });
 
-        // 2. unfold trace
+        // 2. unfold trace — only the step still running spins, the ones behind it settle
+        let liveStep = null, liveStepData = null;
+        const settleStep = () => {
+            if (!liveStep || liveStep.classList.contains('done')) { liveStep = null; return; }
+            liveStep.classList.add('done');
+            const ic = liveStep.querySelector('i');
+            if (ic) ic.className = 'fas ' + ((liveStepData && liveStepData.icon) || 'fa-check');
+            liveStep = null;
+        };
         for (let i = 0; i < steps.length; i++) {
             if (signal.aborted) break;
+            settleStep();
             stepsEl.insertAdjacentHTML('beforeend', `<div class="ai-trace__step"><i class="fas fa-circle-notch fa-spin"></i><span>${steps[i].text}</span></div>`);
+            liveStep = stepsEl.lastElementChild; liveStepData = steps[i];
             scrollToBottom();
             await sleep(useLLM ? 0 : 110 + Math.random() * 150);
         }
+        // the hand-off step keeps spinning while the model generates; anything else is finished here
+        if (!useLLM || signal.aborted) settleStep();
         await sleep(useLLM ? 0 : 120);
 
         let finalHtml = res.html, finalText = res.text, engineUsed = 'builtin', llmError = null;
@@ -590,6 +602,7 @@
                    split is re-derived each frame so a tag arriving mid-chunk still
                    routes the text to the right place. */
                 const paint = () => {
+                    settleStep();   // tokens are arriving — the hand-off is done
                     const part = splitThinking(acc);
                     if (showThought && part.thought.trim()) {
                         if (!thoughtEl) {
@@ -643,6 +656,7 @@
         }
 
         // 4. finalise trace
+        settleStep();   // nothing is still running by here (stream ended, errored or aborted)
         const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
         const traceTitle = thought ? `Thought for ${((thinkMs || (performance.now() - t0)) / 1000).toFixed(1)}s` : `Reasoned for ${elapsed}s`;
         const traceSub = `${thought ? modelLabel(settings.webllmModel) + ' · its own words' : res.intent.replace(/_/g, ' ') + ' · ' + Math.round(res.confidence * 100) + '%'}${engineUsed !== 'builtin' && !thought ? ' · ' + engineUsed : ''}`;
