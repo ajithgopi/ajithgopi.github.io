@@ -585,7 +585,7 @@ section { position: relative; }
 .ai-panel::before {
     content: '';
     position: absolute;
-    inset: -1px;
+    inset: 0;
     border-radius: inherit;
     padding: 1.5px;
     background: var(--grad-border);
@@ -778,7 +778,6 @@ section { position: relative; }
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    scroll-behavior: smooth;
     overscroll-behavior: contain;
 }
 .chat-msg { display: flex; gap: 10px; max-width: 92%; animation: msgIn 0.45s var(--ease-out); }

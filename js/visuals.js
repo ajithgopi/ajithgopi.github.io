@@ -280,9 +280,16 @@
             el.addEventListener('mousemove', (e) => {
                 const r = el.getBoundingClientRect();
                 const x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
+                // Tracking the cursor needs to be instant — the element's own hover
+                // transition (var(--t-med)) would otherwise chase a target that keeps
+                // moving faster than it can settle, reading as a constant wiggle.
+                el.style.transitionDuration = '0s';
                 el.style.transform = `translate(${x * 0.18}px, ${y * 0.22}px)`;
             }, { passive: true });
-            el.addEventListener('mouseleave', () => { el.style.transform = ''; });
+            el.addEventListener('mouseleave', () => {
+                el.style.transitionDuration = '';
+                el.style.transform = '';
+            });
         });
     }
     function initScrollProgress() {
