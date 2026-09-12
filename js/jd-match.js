@@ -669,6 +669,45 @@ Nice to have
         </div>`;
     }
 
+    /* ---------------------------------------------------------
+     * 8. Matching loader — the same reasoning trace the assistant
+     *    shows while it thinks. The analysis itself is instant, so
+     *    the steps are paced: they describe what actually ran, and
+     *    give the recruiter something to read instead of a flash.
+     * ------------------------------------------------------- */
+
+    const REDUCE_MOTION = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function loaderHtml() {
+        return `<div class="ai-trace jd-trace" id="jd-trace">
+            <div class="ai-trace__summary"><i class="fas fa-brain fa-spin"></i> Matching against the CV<span class="thinking-dots"><span></span><span></span><span></span></span></div>
+            <div class="ai-trace__steps" id="jd-trace-steps"></div>
+        </div>`;
+    }
+
+    /* Every line is derived from the result, so the trace never claims
+       work that did not happen. */
+    function loaderSteps(r, wordCount) {
+        const steps = [];
+        /* The UI's own word count, so the trace and the counter under the
+           textarea never disagree (the analyser counts normalised tokens). */
+        const words = (wordCount != null ? wordCount : r.words) || 0;
+        steps.push({ icon: 'fa-file-lines', text: `Read the job description — ${words} ${words === 1 ? 'word' : 'words'}${r.title ? ` · “${shortName(r.title)}”` : ''}.` });
+        if (!r.ok) {
+            steps.push({ icon: 'fa-magnifying-glass', text: 'Scanned it for skills, tools and requirement lines.' });
+            return steps;
+        }
+        steps.push({ icon: 'fa-layer-group', text: 'Split the text into must-have and nice-to-have sections.' });
+        const reqs = r.all.length + r.gaps.length;
+        steps.push({ icon: 'fa-key', text: `Extracted ${reqs} ${reqs === 1 ? 'requirement' : 'requirements'}${r.years && r.years.want ? `, including the ${r.years.want} years it asks for` : ''}.` });
+        steps.push({ icon: 'fa-database', text: `Looked each one up in the CV knowledge base — ${r.matched.length} solid, ${r.partial.length} partial.` });
+        steps.push({ icon: r.gaps.length ? 'fa-triangle-exclamation' : 'fa-check', text: r.gaps.length ? `Flagged ${r.gaps.length} ${r.gaps.length === 1 ? 'gap' : 'gaps'} and the nearest thing on the CV to each.` : 'Found nothing asked for that the CV does not cover.' });
+        steps.push({ icon: 'fa-scale-balanced', text: 'Weighted the score by must-have vs nice-to-have and by the years each line asks for.' });
+        steps.push({ icon: 'fa-pen-nib', text: 'Writing up the fit, the gaps and where he would help…' });
+        return steps;
+    }
+
     function initUI() {
         const modal = document.getElementById('recruiterModal');
         const input = document.getElementById('jd-input');
@@ -677,6 +716,7 @@ Nice to have
         if (!modal || !input || !runBtn || !out || !KB) return;
 
         const count = document.getElementById('jd-count');
+        const runLabel = runBtn.innerHTML;
         const clearBtn = document.getElementById('jd-clear');
         const sampleBtn = document.getElementById('jd-sample');
         let last = null;
@@ -688,13 +728,57 @@ Nice to have
             runBtn.disabled = n < 12;
         };
 
-        function run() {
+        /* Bumped on every run (and on clear) so a trace still playing out
+           from an earlier click stops touching the DOM. */
+        let runToken = 0;
+
+        async function playSteps(steps, token) {
+            const host = document.getElementById('jd-trace-steps');
+            if (!host) return;
+            let live = null, liveData = null;
+            const settle = () => {
+                if (!live || live.classList.contains('done')) { live = null; return; }
+                live.classList.add('done');
+                const ic = live.querySelector('i');
+                if (ic) ic.className = 'fas ' + ((liveData && liveData.icon) || 'fa-check');
+                live = null;
+            };
+            for (let i = 0; i < steps.length; i++) {
+                if (token !== runToken) return;
+                settle();
+                host.insertAdjacentHTML('beforeend', `<div class="ai-trace__step"><i class="fas fa-circle-notch fa-spin"></i><span>${esc(steps[i].text)}</span></div>`);
+                live = host.lastElementChild; liveData = steps[i];
+                if (!REDUCE_MOTION) await sleep(150 + Math.random() * 170);
+            }
+            if (token !== runToken) return;
+            settle();
+            if (!REDUCE_MOTION) await sleep(180);
+        }
+
+        async function run() {
+            const token = ++runToken;
             const r = analyze(input.value);
             last = r;
+
+            /* Show the trace first, then swap in the result it produced. */
             out.hidden = false;
-            out.innerHTML = render(r);
+            out.innerHTML = loaderHtml();
             out.classList.remove('is-in');
             requestAnimationFrame(() => out.classList.add('is-in'));
+            const trace = document.getElementById('jd-trace');
+            if (trace && trace.scrollIntoView) setTimeout(() => { if (token === runToken) trace.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 60);
+
+            runBtn.disabled = true;
+            runBtn.classList.add('is-busy');
+            runBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Matching…';
+            try {
+                await playSteps(loaderSteps(r, words()), token);
+            } finally {
+                if (token === runToken) { runBtn.classList.remove('is-busy'); runBtn.innerHTML = runLabel; syncCount(); }
+            }
+            if (token !== runToken) return;
+
+            out.innerHTML = render(r);
             if (!r.ok) return;
 
             const copy = document.getElementById('jd-copy');
@@ -736,7 +820,7 @@ Nice to have
         runBtn.addEventListener('click', run);
         /* Ctrl/Cmd + Enter runs it without reaching for the mouse. */
         input.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !runBtn.disabled) { e.preventDefault(); run(); } });
-        if (clearBtn) clearBtn.addEventListener('click', () => { input.value = ''; syncCount(); out.hidden = true; out.innerHTML = ''; input.focus(); });
+        if (clearBtn) clearBtn.addEventListener('click', () => { runToken++; input.value = ''; syncCount(); out.hidden = true; out.innerHTML = ''; input.focus(); });
         if (sampleBtn) sampleBtn.addEventListener('click', () => { input.value = SAMPLE; syncCount(); run(); });
 
         /* Tabs */

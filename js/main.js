@@ -10,17 +10,25 @@
     const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
     /* ---------- Theme ---------- */
+    const DEFAULT_THEME = 'dark';
     function initTheme() {
-        const btn = $('#theme-toggle'), icon = $('#theme-icon');
+        const btn = $('#theme-toggle'), icon = $('#theme-icon'), meta = $('#theme-color-meta');
         const apply = (theme, save) => {
             document.documentElement.setAttribute('data-theme', theme);
             if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             if (btn) btn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+            if (meta) meta.setAttribute('content', theme === 'dark' ? '#070a12' : '#f5f7fb');
             if (save) { try { localStorage.setItem('portfolio-theme', theme); } catch (e) { /* ignore */ } }
         };
-        let saved = null; try { const q = new URLSearchParams(location.search).get('theme'); saved = (q === 'light' || q === 'dark') ? q : localStorage.getItem('portfolio-theme'); } catch (e) { /* ignore */ }
-        if (saved) apply(saved, false);
-        else { const h = new Date().getHours(); apply(h >= 6 && h < 18 ? 'light' : 'dark', false); }
+        // Dark is the default everywhere — time of day and the OS colour scheme
+        // are ignored. Only an explicit choice (?theme= or the toggle) wins.
+        let chosen = null;
+        try {
+            const q = new URLSearchParams(location.search).get('theme');
+            const saved = localStorage.getItem('portfolio-theme');
+            chosen = (q === 'light' || q === 'dark') ? q : ((saved === 'light' || saved === 'dark') ? saved : null);
+        } catch (e) { /* ignore */ }
+        apply(chosen || DEFAULT_THEME, false);
         if (btn) btn.addEventListener('click', () => apply(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true));
     }
 

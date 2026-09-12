@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
     <!-- Global site tag (gtag.js) - Google Analytics -->
@@ -13,6 +13,7 @@
     </script>
 
     <meta charset="UTF-8">
+    <meta name="theme-color" content="#070a12">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>App Support | Ajith Gopi</title>
     
@@ -35,15 +36,20 @@
     <link rel="stylesheet" href="css/aos.css"/>
 
     <style>
+        /* Dark is the site-wide default; this page uses the same tokens. */
+        body {
+            background: var(--bg);
+            color: var(--text);
+        }
         .support-container {
             max-width: 860px;
             margin: 0 auto;
         }
         .support-card {
-            background-color: #ffffff;
+            background-color: var(--bg-card-solid);
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
             padding: 2.5rem;
         }
         @media (max-width: 576px) {
@@ -52,48 +58,50 @@
             }
         }
         .badge-app {
-            background-color: #eef2ff;
-            color: #4f46e5;
+            background-color: var(--bg-inset);
+            color: var(--primary);
             font-weight: 600;
             padding: 0.35em 0.8em;
             border-radius: 6px;
             display: inline-block;
         }
         .support-section-title {
-            color: #1f2937;
+            color: var(--text);
             font-weight: 700;
             margin-top: 1.8rem;
             margin-bottom: 0.8rem;
             font-size: 1.35rem;
-            border-bottom: 2px solid #f3f4f6;
+            border-bottom: 2px solid var(--border);
             padding-bottom: 0.4rem;
         }
         .support-body-text {
-            color: #4b5563;
+            color: var(--text-muted);
             line-height: 1.7;
             font-size: 1.02rem;
         }
         .contact-card {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
+            /* style.css has an unrelated .contact-card that is display:flex */
+            display: block;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border);
             border-radius: 10px;
             padding: 1.5rem;
             margin: 1.5rem 0;
         }
         .contact-btn {
-            background-color: #4f46e5;
-            color: #ffffff;
+            background-color: var(--primary);
+            color: #04121a;
             font-weight: 600;
             padding: 0.6rem 1.4rem;
             border-radius: 8px;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            transition: background-color 0.2s ease-in-out;
+            transition: filter 0.2s ease-in-out;
         }
         .contact-btn:hover {
-            background-color: #4338ca;
-            color: #ffffff;
+            filter: brightness(1.12);
+            color: #04121a;
             text-decoration: none;
         }
         .faq-item {
@@ -101,13 +109,20 @@
         }
         .faq-question {
             font-weight: 600;
-            color: #111827;
+            color: var(--text);
             margin-bottom: 0.3rem;
         }
+        /* Bootstrap's light-theme utilities used on this page */
+        .text-dark { color: var(--text) !important; }
+        .text-muted { color: var(--text-dim) !important; }
+        .text-secondary { color: var(--text-muted) !important; }
+        .text-primary { color: var(--primary) !important; }
+        a { color: var(--primary); }
+        a:hover { color: var(--primary-2); }
     </style>
 </head>
 
-<body class="bg-light">
+<body>
     <div class="main-content py-5">
         <div class="container support-container">
             <div class="text-center mb-4">

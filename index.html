@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 
 <head>
     <!-- Global site tag (gtag.js) - Google Analytics -->
@@ -15,8 +15,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ajith Gopi | Full Stack & AI Engineer | Portfolio</title>
     <meta name="description" content="Ajith Gopi is a Full Stack & AI Engineer specialising in LLMs, RAG pipelines, modern web platforms, mobile apps and machine-learning systems. Ask his in-browser AI assistant anything.">
-    <meta name="theme-color" content="#070a12" media="(prefers-color-scheme: dark)">
-    <meta name="theme-color" content="#f5f7fb" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#070a12" id="theme-color-meta">
 
     <link rel="shortcut icon" href="/favicon.png" type="image/png">
     <link rel="icon" href="/favicon.png" type="image/png">
@@ -34,10 +33,11 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/fontawesome.min.css"/>
-    <link rel="stylesheet" href="css/style.css?v=20260924">
+    <link rel="stylesheet" href="css/style.css?v=20260925">
     <script>
-        // Apply saved theme before first paint to avoid a flash
-        (function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('portfolio-theme');if(!t){var h=new Date().getHours();t=(h>=6&&h<18)?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+        // Dark is the default; only an explicit choice (?theme= or a saved
+        // toggle) switches to light. Runs before first paint to avoid a flash.
+        (function(){var t='dark';try{var q=new URLSearchParams(location.search).get('theme');var saved=localStorage.getItem('portfolio-theme');t=(q==='light'||q==='dark')?q:((saved==='light'||saved==='dark')?saved:'dark');}catch(e){}document.documentElement.setAttribute('data-theme',t);})();
     </script>
 </head>
 
@@ -60,7 +60,7 @@
             </a>
             <div class="nav-quick">
                 <button class="btn-ghost icon-btn theme-toggle-btn" type="button" id="theme-toggle" title="Switch theme" aria-label="Toggle dark mode">
-                    <i class="fas fa-moon" id="theme-icon"></i>
+                    <i class="fas fa-sun" id="theme-icon"></i>
                 </button>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                     <i class="fas fa-bars"></i>
@@ -524,8 +524,8 @@
     <script src="js/ai-engine.js?v=20260917"></script>
     <script src="js/visuals.js?v=20260912b"></script>
     <script src="js/ai-assistant.js?v=20260923b"></script>
-    <script src="js/jd-match.js?v=20260924"></script>
-    <script src="js/main.js?v=20260912"></script>
+    <script src="js/jd-match.js?v=20260925"></script>
+    <script src="js/main.js?v=20260925"></script>
 </body>
 
 </html>

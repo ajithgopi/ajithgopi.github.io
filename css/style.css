@@ -1375,6 +1375,12 @@ details[open] > .ai-trace__summary .chev { transform: rotate(90deg); }
 
 .jd-result { margin-top: 1.5rem; opacity: 0; transform: translateY(10px); transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out); }
 .jd-result.is-in { opacity: 1; transform: none; }
+
+/* matching loader — the assistant's reasoning trace, reused in the modal */
+.jd-trace { font-size: 0.85rem; margin-bottom: 0; }
+.jd-trace .ai-trace__summary { cursor: default; }
+.jd-trace .ai-trace__steps { gap: 6px; }
+#jd-run.is-busy:disabled { opacity: 0.85; cursor: progress; }
 .jd-empty { display: flex; gap: 10px; align-items: flex-start; color: var(--text-muted); font-size: 0.93rem; line-height: 1.6; background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1rem 1.1rem; }
 .jd-empty i { color: var(--amber); margin-top: 3px; }
 
