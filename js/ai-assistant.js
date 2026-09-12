@@ -4,7 +4,12 @@
  * Engines:
  *   builtin  — AjithAI reasoning engine (js/ai-engine.js), instant, offline
  *   webllm   — real LLM in the browser via WebGPU (@mlc-ai/web-llm),
- *              loaded on demand; uses the built-in retrieval as RAG context
+ *              uses the built-in retrieval as RAG context
+ *
+ * Unless the visitor has picked an engine themselves, the model is fetched
+ * in the background on page open — no card, no paused chat, no note — and
+ * the engine switches itself to webllm once the weights are on the GPU.
+ * Built-in answers every message until then, so nothing ever waits.
  *
  * UI: streaming reveal, live reasoning trace, follow-up chips, page
  * actions, copy/regenerate, voice input, persistence, expand mode.
@@ -47,8 +52,16 @@
 
     let engine, settings, history = [], busy = false, aborter = null, lastUserText = '';
     let webllm = { engine: null, model: null, worker: null }, webllmModule = null;
-    let download = { seq: 0, active: false, promise: null, model: null, card: null };
+    /* `silent` marks the background load started on page open: same state machine, but
+       it draws no card, pauses nothing and says nothing. */
+    let download = { seq: 0, active: false, silent: false, promise: null, model: null, card: null };
     let onInitProgress = null;
+    /* Set once the visitor picks an engine themselves — from then on the automatic
+       background load and the automatic switch stay out of their way. */
+    let enginePinned = false;
+    /* How long after `load` the background download waits before asking for an idle
+       slot, so it never competes with first paint. */
+    const AUTO_LOAD_DELAY = 1200;
     const INPUT_PLACEHOLDER = 'Ask about experience, skills, projects… (try /help)';
     let el = {};
 
@@ -421,15 +434,17 @@
     /* WebLLM reports progress once per shard and once per cache write — hundreds of
        times for a 1 GB model. Painting the card on a frame tick instead of on every
        report keeps the download from thrashing layout on top of everything else. */
-    let dlFrame = null, dlLatest = null;
+    let dlFrame = null, dlLatest = null, dlLast = null;
     function updateDownload(p) {
+        dlLast = p;                      // kept so a promoted background load opens its card filled in
+        if (download.silent) return;
         dlLatest = p;
         if (dlFrame) return;
         dlFrame = requestAnimationFrame(() => { dlFrame = null; const q = dlLatest; dlLatest = null; if (q && download.active) paintDownload(q); });
     }
     function stopDownloadPaint() {
         if (dlFrame) cancelAnimationFrame(dlFrame);
-        dlFrame = null; dlLatest = null;
+        dlFrame = null; dlLatest = null; dlLast = null;
     }
     function paintDownload(p) {
         const pct = Math.max(0, Math.min(100, Math.round((p && typeof p.progress === 'number' ? p.progress : 0) * 100)));
@@ -454,18 +469,41 @@
         setStatus(`Loading ${modelLabel(download.model || settings.webllmModel)} · ${pct}%`, 'busy');
     }
     function finishDownload(ok, err) {
-        const label = modelLabel(download.model || settings.webllmModel);
-        download.active = false; download.promise = null; onInitProgress = null;
+        const model = download.model || settings.webllmModel;
+        const label = modelLabel(model), silent = download.silent;
+        download.active = false; download.silent = false; download.promise = null; onInitProgress = null;
         stopDownloadPaint();
-        pauseVisuals(false);
-        removeDownloadCards();           // the card only ever represents an active download
-        hideProgress();
-        setChatDisabled(false);
-        if (ok) { markCached(download.model || settings.webllmModel); announceActiveModel(label); }
-        else {
-            addSystemNote(`<i class="fas fa-exclamation-triangle"></i> <b>${escapeHtml(label)}</b> failed to load — ${escapeHtml(err && err.message ? err.message : String(err))}`);
-            if (settings.engine === 'webllm') { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); }
+        if (!silent) {
+            pauseVisuals(false);
+            removeDownloadCards();       // the card only ever represents an active download
+            hideProgress();
+            setChatDisabled(false);
         }
+        if (ok) {
+            markCached(model);
+            if (silent) adoptAutoModel(); else announceActiveModel(label);
+            return;
+        }
+        if (silent) {
+            /* Nothing was promised, so nothing is apologised for — the built-in engine
+               was answering all along and keeps doing so. */
+            if (settings.engine === 'webllm' && !enginePinned) { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); }
+            refreshStatus();
+            if (window.console && console.warn) console.warn('Ajith AI: background model load failed —', err);
+            return;
+        }
+        addSystemNote(`<i class="fas fa-exclamation-triangle"></i> <b>${escapeHtml(label)}</b> failed to load — ${escapeHtml(err && err.message ? err.message : String(err))}`);
+        if (settings.engine === 'webllm') { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); }
+    }
+    /* The background load finished. The whole point of it is that it was never
+       announced, so the switch isn't either: the engine chip turning into WebGPU LLM
+       and the status line naming the model is the only thing that changes. */
+    function adoptAutoModel() {
+        if (!enginePinned && settings.engine !== 'webllm') {
+            settings.engine = 'webllm'; saveJSON(SETTINGS_KEY, settings);
+            renderEngineMenu();
+        }
+        refreshStatus();
     }
     function announceActiveModel(label) {
         addSystemNote(`<i class="fas fa-check-circle"></i> Now using <b>${escapeHtml(label)}</b> — a real LLM running on your GPU, grounded in Ajith's CV via retrieval.${settings.engine !== 'webllm' ? ' Switch the engine to <b>WebGPU LLM</b> to use it.' : ''}`);
@@ -475,7 +513,7 @@
     function cancelModelLoad() {
         if (!download.active) return;
         download.seq++;                  // invalidates the in-flight load
-        download.active = false; download.promise = null; download.model = null;
+        download.active = false; download.silent = false; download.promise = null; download.model = null;
         onInitProgress = null;
         stopDownloadPaint();
         pauseVisuals(false);
@@ -485,26 +523,67 @@
         hideProgress();
         if (webllm.engine) quietly(() => webllm.engine.unload());
     }
-    function loadWebLLM() {
+    /* Downloading ~250 MB unasked is only reasonable on a connection that can afford
+       it — Data Saver and 2G opt out, and so does a browser with no WebGPU to run the
+       model on afterwards. */
+    function autoLoadAllowed() {
+        if (!navigator.gpu) return false;
+        const c = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+        if (c) {
+            if (c.saveData) return false;
+            if (/2g/.test(c.effectiveType || '')) return false;
+        }
+        return true;
+    }
+    /* Fetch the model on page open, in the background: no card, no paused chat, no
+       note. The visitor keeps the instant built-in answers the whole time, and once the
+       weights are compiled onto the GPU the engine switches itself to WebGPU LLM.
+       Deferred past `load` and onto an idle slot so it never competes with first paint. */
+    function scheduleAutoLoad() {
+        if (!autoLoadAllowed()) return;
+        const start = () => {
+            if (enginePinned || !autoLoadAllowed()) return;
+            loadWebLLM(true).catch(() => { /* reported by finishDownload, to the console only */ });
+        };
+        const idle = () => (window.requestIdleCallback ? requestIdleCallback(start, { timeout: 3000 }) : start());
+        const arm = () => setTimeout(idle, AUTO_LOAD_DELAY);
+        if (document.readyState === 'complete') arm();
+        else window.addEventListener('load', arm, { once: true });
+    }
+    function loadWebLLM(silent) {
         const model = settings.webllmModel;
         if (!download.active && webllm.model === model) return Promise.resolve(webllm.engine);
         if (download.active && download.model === model) {
-            if (settings.engine === 'webllm') setChatDisabled(true, `Downloading ${modelLabel(model)}… chat resumes when it's ready`);
+            if (!silent && download.silent) promoteDownload();
+            else if (!silent && settings.engine === 'webllm') setChatDisabled(true, `Downloading ${modelLabel(model)}… chat resumes when it's ready`);
             return download.promise;
         }
-        return startModelLoad(model);
+        return startModelLoad(model, silent);
     }
-    function startModelLoad(model) {
-        const seq = ++download.seq;      // supersedes anything already in flight
-        const paused = download.active ? download.model : null;
-        const label = modelLabel(model);
-        download.active = true; download.model = model; onInitProgress = null;
-        download.labelledCached = isCached(model);
-        if (paused) addSystemNote(`<i class="fas fa-pause-circle"></i> Paused the <b>${escapeHtml(modelLabel(paused))}</b> download and started <b>${escapeHtml(label)}</b> — what it fetched is cached, so resuming it later picks up where it stopped.`);
+    /* A background load the visitor has now asked for out loud: hand it the card and the
+       paused chat it would have had if they had started it themselves. */
+    function promoteDownload() {
+        if (!download.active || !download.silent) return;
+        const label = modelLabel(download.model);
+        download.silent = false;
         pauseVisuals(true);
         renderDownloadCard(label, download.labelledCached);
         setChatDisabled(true, `${download.labelledCached ? 'Loading' : 'Downloading'} ${label}… chat resumes when it's ready`);
-        updateDownload({ progress: 0, text: '' });
+        updateDownload(dlLast || { progress: 0, text: '' });
+    }
+    function startModelLoad(model, silent) {
+        const seq = ++download.seq;      // supersedes anything already in flight
+        const paused = download.active && !download.silent ? download.model : null;
+        const label = modelLabel(model);
+        download.active = true; download.silent = !!silent; download.model = model; onInitProgress = null;
+        download.labelledCached = isCached(model);
+        if (paused) addSystemNote(`<i class="fas fa-pause-circle"></i> Paused the <b>${escapeHtml(modelLabel(paused))}</b> download and started <b>${escapeHtml(label)}</b> — what it fetched is cached, so resuming it later picks up where it stopped.`);
+        if (!silent) {
+            pauseVisuals(true);
+            renderDownloadCard(label, download.labelledCached);
+            setChatDisabled(true, `${download.labelledCached ? 'Loading' : 'Downloading'} ${label}… chat resumes when it's ready`);
+            updateDownload({ progress: 0, text: '' });
+        }
         download.promise = runModelLoad(model, seq)
             .then(eng => { if (seq === download.seq) finishDownload(true); return eng; })
             .catch(err => { if (seq === download.seq) finishDownload(false, err); throw err; });
@@ -587,13 +666,20 @@
     function selectModel(id) {
         if (id === settings.webllmModel && (download.active || webllm.model === id)) return;
         settings.webllmModel = id; saveJSON(SETTINGS_KEY, settings); refreshStatus();
-        if (settings.engine !== 'webllm') { addSystemNote(`Model set to <b>${escapeHtml(modelLabel(id))}</b> — it loads when you switch to the <b>WebGPU LLM</b> engine.`); return; }
+        if (settings.engine !== 'webllm') {
+            // A background load already running was for the old model; point it at this one.
+            if (download.active && download.silent) loadWebLLM(true).catch(() => { /* silent by design */ });
+            addSystemNote(`Model set to <b>${escapeHtml(modelLabel(id))}</b> — it loads when you switch to the <b>WebGPU LLM</b> engine.`);
+            return;
+        }
         if (webllm.model === id && !download.active) { announceActiveModel(modelLabel(id)); return; }
         loadWebLLM().catch(() => { /* surfaced by finishDownload */ });
     }
     function switchEngine(k) {
         if (!ENGINE_META[k]) return;
         const prev = settings.engine;
+        // An engine the visitor picked themselves outranks anything the page would do on its own.
+        enginePinned = true; settings.enginePinned = true;
         settings.engine = k; saveJSON(SETTINGS_KEY, settings);
         renderEngineMenu(); refreshStatus();
         if (k === 'webllm') {
@@ -601,7 +687,7 @@
             if (webllm.model === settings.webllmModel && !download.active) { announceActiveModel(modelLabel(settings.webllmModel)); return; }
             loadWebLLM().catch(() => { /* surfaced by finishDownload */ });
         } else if (prev !== k) {
-            const paused = download.active ? modelLabel(download.model) : null;
+            const paused = download.active && !download.silent ? modelLabel(download.model) : null;
             cancelModelLoad();
             addSystemNote(`Engine switched to <b>${ENGINE_META[k].title}</b>.${paused ? ` The <b>${escapeHtml(paused)}</b> download was paused — what it fetched is cached, so resuming it later picks up where it stopped.` : ''}`);
         }
@@ -616,7 +702,7 @@
         opts = opts || {};
         const text = String(rawText || '').trim();
         if (!text || busy) return;
-        if (download.active && settings.engine === 'webllm') { addSystemNote('⏳ The model is still downloading — chat resumes automatically when it\'s ready.'); return; }
+        if (download.active && !download.silent && settings.engine === 'webllm') { addSystemNote('⏳ The model is still downloading — chat resumes automatically when it\'s ready.'); return; }
         if (/^\/(clear|reset)$/i.test(text)) { clearChat(); return; }
         if (/^\/engine\b/i.test(text)) { el.engine.classList.add('is-open'); el.input.value = ''; return; }
 
@@ -642,7 +728,9 @@
         const stepsEl = $(id + '-steps'), traceEl = $(id + '-trace'), answerEl = $(id + '-answer'), extraEl = $(id + '-extra'), actionsEl = $(id + '-actions');
         scrollToBottom(true);
 
-        const useLLM = settings.engine !== 'builtin';
+        /* A background load is never worth waiting on: until it lands, the built-in
+           engine answers instantly, exactly as it did before the model was asked for. */
+        const useLLM = settings.engine !== 'builtin' && !(download.active && download.silent);
         const offDomain = !!res.offDomain;
         const showThought = useLLM && !offDomain;
         const steps = res.reasoning.slice();
@@ -1051,7 +1139,8 @@
         if (!el.panel || !el.body || !window.AjithAI) return;
         engine = AjithAI.createEngine();
         settings = Object.assign({ engine: 'builtin', webllmModel: WEBLLM_MODELS[0].id }, loadJSON(SETTINGS_KEY, {}));
-        try { const qe = new URLSearchParams(location.search).get('engine'); if (qe && ENGINE_META[qe]) settings.engine = qe; } catch (e) { /* ignore */ }
+        enginePinned = !!settings.enginePinned;
+        try { const qe = new URLSearchParams(location.search).get('engine'); if (qe && ENGINE_META[qe]) { settings.engine = qe; enginePinned = true; } } catch (e) { /* ignore */ }
         if (!ENGINE_META[settings.engine]) settings.engine = 'builtin';
         if (!WEBLLM_MODELS.some(m => m.id === settings.webllmModel)) settings.webllmModel = WEBLLM_MODELS[0].id;
         history = loadJSON(STORE_KEY, []);
@@ -1062,9 +1151,16 @@
         else welcome();
         setChips(DEFAULT_CHIPS);
         renderEngineMenu(); refreshStatus();
-        if (settings.engine === 'webllm') {
-            if (!navigator.gpu) { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); }
-            else if (isCached(settings.webllmModel)) {
+        if (settings.engine === 'webllm' && !navigator.gpu) { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); }
+        if (!enginePinned) {
+            /* Nobody has chosen an engine, so the page chooses for them: pull the model
+               down quietly and switch over when it is ready. A visit that can't do that
+               — Data Saver, 2G — goes back to the built-in engine rather than sitting on
+               a WebGPU setting an earlier visit switched itself into. */
+            if (settings.engine === 'webllm' && !autoLoadAllowed()) { settings.engine = 'builtin'; saveJSON(SETTINGS_KEY, settings); renderEngineMenu(); refreshStatus(); }
+            scheduleAutoLoad();
+        } else if (settings.engine === 'webllm') {
+            if (isCached(settings.webllmModel)) {
                 // Weights are already in the browser cache — restore them now so the first
                 // message doesn't pay for the GPU compile.
                 loadWebLLM().catch(() => { /* surfaced by finishDownload */ });
