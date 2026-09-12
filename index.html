@@ -34,7 +34,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/fontawesome.min.css"/>
-    <link rel="stylesheet" href="css/style.css?v=20260923">
+    <link rel="stylesheet" href="css/style.css?v=20260924">
     <script>
         // Apply saved theme before first paint to avoid a flash
         (function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('portfolio-theme');if(!t){var h=new Date().getHours();t=(h>=6&&h<18)?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
@@ -437,24 +437,53 @@
         </div>
     </section>
 
-    <!-- Recruiter quick view -->
+    <!-- Recruiter toolkit: JD matcher + quick summary -->
     <div class="modal fade" id="recruiterModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
             <div class="modal-content modal-content-dark">
                 <div class="modal-header modal-header-dark">
-                    <h5 class="modal-title text-main"><i class="fas fa-id-card text-info me-2"></i> Recruiter quick summary</h5>
+                    <h5 class="modal-title text-main"><i class="fas fa-id-card text-info me-2"></i> Recruiter toolkit</h5>
                     <button type="button" class="btn-close btn-close-custom" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body modal-body-dark">
-                    <div class="row g-3">
-                        <div class="col-md-6"><h6><i class="fas fa-user-tag text-success me-2"></i> Current role &amp; location</h6><p class="timeline-desc">Full Stack Engineer at Emirates NBD (via Synechron Technologies). Based in Dubai, UAE. Open to senior full-stack and AI-architecture roles — on-site, remote or relocation.</p></div>
-                        <div class="col-md-6"><h6><i class="fas fa-code text-info me-2"></i> Primary tech stack</h6><p class="timeline-desc">Node.js, React, Next.js, TypeScript, Python, Swift, Kotlin, MongoDB, SQL, AWS, Docker/K8s, LLM &amp; RAG integrations.</p></div>
-                        <div class="col-md-6"><h6><i class="fas fa-graduation-cap text-warning me-2"></i> Education</h6><p class="timeline-desc">Bachelor of Computer Application (BCA), Mahatma Gandhi University, 7.7 CGPA.</p></div>
-                        <div class="col-md-6"><h6><i class="fas fa-envelope text-primary me-2"></i> Contact</h6><p class="timeline-desc">Email: ajithgopikklm@gmail.com / me@agopi.in<br>Phone: (+971) 555-166-278</p></div>
+                    <div class="rt-tabs" role="tablist">
+                        <button type="button" class="rt-tab active" data-rt-tab="jd" role="tab" aria-selected="true" aria-controls="rt-pane-jd" id="rt-tab-jd"><i class="fas fa-magic"></i> Match a job description</button>
+                        <button type="button" class="rt-tab" data-rt-tab="summary" role="tab" aria-selected="false" aria-controls="rt-pane-summary" id="rt-tab-summary"><i class="fas fa-tasks"></i> Quick summary</button>
                     </div>
-                    <div class="d-flex flex-wrap gap-2 mt-3">
-                        <a class="btn-ghost btn-sm-custom" href="https://www.linkedin.com/in/ahgopi/" target="_blank" rel="noopener"><i class="fab fa-linkedin"></i> LinkedIn</a>
-                        <button type="button" class="btn-ghost btn-sm-custom" data-bs-dismiss="modal" data-ai-prompt="Why should I hire Ajith?"><i class="fas fa-magic"></i> Ask the AI why hire him</button>
+
+                    <!-- JD matcher -->
+                    <div data-rt-pane="jd" id="rt-pane-jd" role="tabpanel" aria-labelledby="rt-tab-jd">
+                        <p class="jd-lede">Paste the job description and get an honest, line-by-line read: what Ajith already does, where he is short, and exactly how he would help on this role.</p>
+                        <p class="jd-privacy"><i class="fas fa-lock"></i> Matched in your browser against his CV. Nothing you paste is uploaded, logged or stored.</p>
+                        <div class="jd-input-wrap">
+                            <label class="visually-hidden" for="jd-input">Job description</label>
+                            <textarea id="jd-input" class="jd-textarea" rows="8" spellcheck="false"
+                                placeholder="Paste the full job description here — title, responsibilities, requirements and nice-to-haves. The more you paste, the sharper the match."
+                                data-placeholder-sm="Paste the job description here…"></textarea>
+                            <div class="jd-input-foot">
+                                <span class="jd-count" id="jd-count">0 words</span>
+                                <div class="jd-input-actions">
+                                    <button type="button" class="btn-ghost btn-sm-custom" id="jd-sample"><i class="fas fa-flask"></i> Try a sample</button>
+                                    <button type="button" class="btn-ghost btn-sm-custom" id="jd-clear"><i class="fas fa-eraser"></i> Clear</button>
+                                    <button type="button" class="btn-ai btn-sm-custom" id="jd-run" disabled><i class="fas fa-magic"></i> Match against my CV</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="jd-result" id="jd-result" hidden aria-live="polite"></div>
+                    </div>
+
+                    <!-- Quick summary -->
+                    <div data-rt-pane="summary" id="rt-pane-summary" role="tabpanel" aria-labelledby="rt-tab-summary" hidden>
+                        <div class="row g-3">
+                            <div class="col-md-6"><h6><i class="fas fa-user-tag text-success me-2"></i> Current role &amp; location</h6><p class="timeline-desc">Full Stack Engineer at Emirates NBD (via Synechron Technologies). Based in Dubai, UAE. Open to senior full-stack and AI-architecture roles — on-site, remote or relocation.</p></div>
+                            <div class="col-md-6"><h6><i class="fas fa-code text-info me-2"></i> Primary tech stack</h6><p class="timeline-desc">Node.js, React, Next.js, TypeScript, Python, Swift, Kotlin, MongoDB, SQL, AWS, Docker/K8s, LLM &amp; RAG integrations.</p></div>
+                            <div class="col-md-6"><h6><i class="fas fa-graduation-cap text-warning me-2"></i> Education</h6><p class="timeline-desc">Bachelor of Computer Application (BCA), Mahatma Gandhi University, 7.7 CGPA.</p></div>
+                            <div class="col-md-6"><h6><i class="fas fa-envelope text-primary me-2"></i> Contact</h6><p class="timeline-desc">Email: ajithgopikklm@gmail.com / me@agopi.in<br>Phone: (+971) 555-166-278</p></div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <a class="btn-ghost btn-sm-custom" href="https://www.linkedin.com/in/ahgopi/" target="_blank" rel="noopener"><i class="fab fa-linkedin"></i> LinkedIn</a>
+                            <button type="button" class="btn-ghost btn-sm-custom" data-bs-dismiss="modal" data-ai-prompt="Why should I hire Ajith?"><i class="fas fa-magic"></i> Ask the AI why hire him</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -495,6 +524,7 @@
     <script src="js/ai-engine.js?v=20260917"></script>
     <script src="js/visuals.js?v=20260912"></script>
     <script src="js/ai-assistant.js?v=20260923"></script>
+    <script src="js/jd-match.js?v=20260924"></script>
     <script src="js/main.js?v=20260912"></script>
 </body>
 
