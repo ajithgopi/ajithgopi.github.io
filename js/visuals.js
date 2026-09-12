@@ -28,6 +28,9 @@
             this.excitement = 0; this.targetExcitement = 0;
             this.time = 0;
             this.visible = true;
+            /* Stood down entirely while a model loads, and capped to ~30fps while one
+               generates — both fight this canvas for the main thread and the GPU. */
+            this.paused = false; this.minFrameMs = 0;
             this.dpr = Math.min(window.devicePixelRatio || 1, 2);
             this.terms = ['w₁·x + b', 'softmax', 'RAG', 'LLM', 'attention', 'θ', 'ReLU', 'embed', 'token', 'σ(z)', 'k-NN', 'BM25', 'ctx', 'agent', 'loss ↓', 'α: 0.92', 'vector', 'prompt'];
             this.palette = this.buildPalette();
@@ -115,6 +118,8 @@
                 .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
         }
         setExcitement(v) { this.targetExcitement = Math.max(0, Math.min(1, v)); if (v > 0.5) this.burst(10); }
+        setPaused(on) { this.paused = !!on; this.last = performance.now(); }
+        setEconomy(on) { this.minFrameMs = on ? 32 : 0; this.last = performance.now(); }
         burst(n) { for (let i = 0; i < n; i++) this.spawnPulse(); }
         spawnPulse() {
             if (!this.edges.length) return;
@@ -146,6 +151,8 @@
         }
         frame(now) {
             requestAnimationFrame(t => this.frame(t));
+            if (this.paused) { this.last = now; return; }
+            if (this.minFrameMs && now - this.last < this.minFrameMs) return;
             const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
             if (!this.visible || document.hidden) return;
             this.time += dt;
@@ -305,6 +312,8 @@
     window.AjithVisuals = {
         hero: null,
         setExcitement(v) { if (this.hero) this.hero.setExcitement(v); },
+        setPaused(on) { if (this.hero) this.hero.setPaused(on); },
+        setEconomy(on) { if (this.hero) this.hero.setEconomy(on); },
         burst(n) { if (this.hero) this.hero.burst(n || 8); }
     };
 

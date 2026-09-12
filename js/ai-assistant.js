@@ -38,8 +38,15 @@
         `https://unpkg.com/@mlc-ai/web-llm@${WEBLLM_VERSION}/lib/index.js`
     ];
 
+    /* Resolved against this script's own URL so the worker is found no matter
+       which page embeds the assistant. */
+    const WORKER_URL = (function () {
+        try { return new URL('ai-worker.js', (document.currentScript && document.currentScript.src) || location.href).href; }
+        catch (e) { return 'js/ai-worker.js'; }
+    })();
+
     let engine, settings, history = [], busy = false, aborter = null, lastUserText = '';
-    let webllm = { engine: null, model: null }, webllmModule = null;
+    let webllm = { engine: null, model: null, worker: null }, webllmModule = null;
     let download = { seq: 0, active: false, promise: null, model: null, card: null };
     let onInitProgress = null;
     const INPUT_PLACEHOLDER = 'Ask about experience, skills, projects… (try /help)';
@@ -56,7 +63,12 @@
     function setThinking(on) {
         el.panel.classList.toggle('is-thinking', on);
         el.status.classList.toggle('is-busy', on);
-        if (window.AjithVisuals) window.AjithVisuals.setExcitement(on ? 1 : 0);
+        if (window.AjithVisuals) {
+            window.AjithVisuals.setExcitement(on ? 1 : 0);
+            /* While the LLM generates, the canvas drops to ~30fps: the GPU is busy with
+               the model and a full-rate redraw is what visitors feel as stutter. */
+            if (typeof window.AjithVisuals.setEconomy === 'function') window.AjithVisuals.setEconomy(on && settings && settings.engine === 'webllm');
+        }
         el.send.classList.toggle('is-stop', on);
         el.send.innerHTML = on ? '<i class="fas fa-stop"></i>' : '<i class="fas fa-paper-plane"></i>';
         el.send.title = on ? 'Stop' : 'Send';
@@ -287,15 +299,65 @@
         }
         throw new Error('Could not load the WebLLM library from any CDN (' + errors.join(' · ') + '). Check your network or ad-blocker, then retry.');
     }
-    /* One long-lived MLCEngine is reused for every model: engine.unload() aborts an
+    /* Boot the worker and wait for it to confirm it has the library, because a
+       WebWorkerMLCEngine starts posting from its own constructor and a worker that
+       never imported anything would swallow those messages forever. `addEventListener`
+       is used rather than `onmessage`, which WebWorkerMLCEngine claims for itself. */
+    function startEngineWorker() {
+        return new Promise((resolve, reject) => {
+            let worker;
+            try { worker = new Worker(WORKER_URL, { type: 'module' }); }
+            catch (e) { reject(e); return; }
+            let settled = false;
+            const finish = (fn, arg) => {
+                if (settled) return;
+                settled = true;
+                worker.removeEventListener('message', onMessage);
+                worker.removeEventListener('error', onError);
+                fn(arg);
+            };
+            const kill = () => { try { worker.terminate(); } catch (e) { /* already gone */ } };
+            const onMessage = (e) => {
+                const d = e.data;
+                if (!d || !d.__ajith) return;
+                if (d.__ajith === 'ready') finish(resolve, worker);
+                else if (d.__ajith === 'fail') { kill(); finish(reject, new Error(d.error || 'worker could not load WebLLM')); }
+            };
+            const onError = (e) => { kill(); finish(reject, new Error((e && e.message) || 'worker failed to start')); };
+            worker.addEventListener('message', onMessage);
+            worker.addEventListener('error', onError);
+            worker.postMessage({ __ajith: 'init', urls: WEBLLM_CDNS });
+        });
+    }
+    /* One long-lived engine is reused for every model: engine.unload() aborts an
        in-flight engine.reload(), which is how switching models mid-download pauses the
        old one. Shards already fetched stay in the browser's Cache API, so going back to
-       a paused model resumes from where it stopped rather than starting over. */
+       a paused model resumes from where it stopped rather than starting over.
+       It lives in a worker so weight fetching, cache writes, the WASM runtime and the
+       WebGPU dispatch loop never block the page — on the main thread they stall
+       rendering badly enough to make the whole machine feel stuck. A browser without
+       module workers, or a blocked worker URL, falls back to an in-page engine: still
+       works, just with the jank. */
     async function getMLCEngine() {
         if (!navigator.gpu) throw new Error('WebGPU is not available in this browser. Use a recent Chrome or Edge on desktop, or switch back to the built-in engine.');
         const mod = await importWebLLM();
-        if (!webllm.engine) webllm.engine = new mod.MLCEngine({ initProgressCallback: (p) => { if (onInitProgress) onInitProgress(p); } });
+        if (webllm.engine) return webllm.engine;
+        const onProgress = (p) => { if (onInitProgress) onInitProgress(p); };
+        try {
+            webllm.worker = await startEngineWorker();
+            webllm.engine = new mod.WebWorkerMLCEngine(webllm.worker, { initProgressCallback: onProgress });
+        } catch (e) {
+            webllm.worker = null;
+            if (window.console && console.warn) console.warn('Ajith AI: running the model on the main thread — the worker did not start (' + (e && e.message ? e.message : e) + ').');
+            webllm.engine = new mod.MLCEngine({ initProgressCallback: onProgress });
+        }
         return webllm.engine;
+    }
+    /* unload()/interruptGenerate() are async once the engine is in a worker; a
+       rejection from an abort we asked for is expected, not an error. */
+    function quietly(fn) {
+        try { const r = fn(); if (r && typeof r.catch === 'function') r.catch(() => { }); }
+        catch (e) { /* older builds are synchronous */ }
     }
     /* reload() *resolves* rather than throwing when unload() aborts it, so a superseded
        load looks exactly like a successful one. Every load therefore carries a sequence
@@ -333,6 +395,13 @@
         if (on) el.input.placeholder = placeholder || 'Downloading model…'; else restorePlaceholder();
         document.querySelectorAll('[data-ai-prompt]').forEach(b => b.disabled = on);
     }
+    /* The hero constellation redraws ~150 nodes and their edges every frame. That is
+       fine on its own, but it competes with model loading for the same main thread and
+       the same GPU, so it stands down until the model is ready. */
+    function pauseVisuals(on) {
+        if (window.AjithVisuals && typeof window.AjithVisuals.setPaused === 'function') window.AjithVisuals.setPaused(on);
+    }
+
     function removeDownloadCards() {
         el.body.querySelectorAll('.ai-dl').forEach(n => n.remove());
         download.card = null;
@@ -349,7 +418,20 @@
         $('ai-dl-cancel').addEventListener('click', () => switchEngine('builtin'));
         scrollToBottom(true);
     }
+    /* WebLLM reports progress once per shard and once per cache write — hundreds of
+       times for a 1 GB model. Painting the card on a frame tick instead of on every
+       report keeps the download from thrashing layout on top of everything else. */
+    let dlFrame = null, dlLatest = null;
     function updateDownload(p) {
+        dlLatest = p;
+        if (dlFrame) return;
+        dlFrame = requestAnimationFrame(() => { dlFrame = null; const q = dlLatest; dlLatest = null; if (q && download.active) paintDownload(q); });
+    }
+    function stopDownloadPaint() {
+        if (dlFrame) cancelAnimationFrame(dlFrame);
+        dlFrame = null; dlLatest = null;
+    }
+    function paintDownload(p) {
         const pct = Math.max(0, Math.min(100, Math.round((p && typeof p.progress === 'number' ? p.progress : 0) * 100)));
         const text = p && p.text ? String(p.text).replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim() : '';
         const gpuPhase = /gpu|shader|loading/i.test(text) && pct >= 100;
@@ -374,6 +456,8 @@
     function finishDownload(ok, err) {
         const label = modelLabel(download.model || settings.webllmModel);
         download.active = false; download.promise = null; onInitProgress = null;
+        stopDownloadPaint();
+        pauseVisuals(false);
         removeDownloadCards();           // the card only ever represents an active download
         hideProgress();
         setChatDisabled(false);
@@ -393,11 +477,13 @@
         download.seq++;                  // invalidates the in-flight load
         download.active = false; download.promise = null; download.model = null;
         onInitProgress = null;
+        stopDownloadPaint();
+        pauseVisuals(false);
         webllm.model = null;
         removeDownloadCards();
         setChatDisabled(false);
         hideProgress();
-        if (webllm.engine) { try { webllm.engine.unload(); } catch (e) { /* ignore */ } }
+        if (webllm.engine) quietly(() => webllm.engine.unload());
     }
     function loadWebLLM() {
         const model = settings.webllmModel;
@@ -415,6 +501,7 @@
         download.active = true; download.model = model; onInitProgress = null;
         download.labelledCached = isCached(model);
         if (paused) addSystemNote(`<i class="fas fa-pause-circle"></i> Paused the <b>${escapeHtml(modelLabel(paused))}</b> download and started <b>${escapeHtml(label)}</b> — what it fetched is cached, so resuming it later picks up where it stopped.`);
+        pauseVisuals(true);
         renderDownloadCard(label, download.labelledCached);
         setChatDisabled(true, `${download.labelledCached ? 'Loading' : 'Downloading'} ${label}… chat resumes when it's ready`);
         updateDownload({ progress: 0, text: '' });
@@ -443,7 +530,7 @@
         /* Walking away from a half-finished stream leaves MLCEngine mid-generation and
            the next request never resolves, so stopping early means asking the engine to
            stop and then draining what is already queued — never just returning. */
-        const halt = () => { done = true; try { if (typeof eng.interruptGenerate === 'function') eng.interruptGenerate(); } catch (e) { /* older builds */ } };
+        const halt = () => { done = true; if (typeof eng.interruptGenerate === 'function') quietly(() => eng.interruptGenerate()); };
         /* The consumer breaks out of this generator when the visitor hits Stop, which
            abandons `chunks` mid-flight; the finally is what still frees the engine. */
         try {
